@@ -2,10 +2,17 @@ import { Telegraf } from "telegraf";
 import { BotContext } from "./context";
 import { CHECKIN_LABEL, CHECKOUT_LABEL } from "./keyboard";
 import { attachTrackedUser } from "./middleware";
+import { env } from "../config/env";
 import { handleAddCommand, handleAddFlowMessage } from "../handlers/add";
 import { handleCheckIn } from "../handlers/checkin";
 import { handleCheckOut } from "../handlers/checkout";
 import { handleManualHoursForOpenSession, replyNoManualTarget } from "../handlers/manualHours";
+import {
+  handleMonthCommand,
+  handleResetAllCommand,
+  handleTodayCommand,
+  handleWeekCommand
+} from "../handlers/reportCommands";
 import { handleStart } from "../handlers/start";
 import { logger } from "../logger";
 import { parseHoursInput } from "../utils/time";
@@ -26,6 +33,23 @@ export function createTelegramBot(botToken: string, timezoneName: string): Teleg
   bot.command("add", async (ctx) => {
     const text = "text" in ctx.message ? ctx.message.text : "/add";
     await handleAddCommand(ctx, text, timezoneName);
+  });
+
+  bot.command("today", async (ctx) => {
+    await handleTodayCommand(ctx, timezoneName);
+  });
+
+  bot.command("week", async (ctx) => {
+    await handleWeekCommand(ctx, timezoneName);
+  });
+
+  bot.command("month", async (ctx) => {
+    await handleMonthCommand(ctx, timezoneName);
+  });
+
+  bot.command("resetall", async (ctx) => {
+    const text = "text" in ctx.message ? ctx.message.text : "/resetall";
+    await handleResetAllCommand(ctx, text, env.ADMIN_TELEGRAM_IDS);
   });
 
   bot.hears(CHECKIN_LABEL, async (ctx) => {
@@ -66,4 +90,3 @@ export function createTelegramBot(botToken: string, timezoneName: string): Teleg
 
   return bot;
 }
-

@@ -16,6 +16,8 @@ export function startBurnDownScheduler(bot: Telegraf<BotContext>, timezoneName: 
           const burnDown = await getBurnDown(user.id, now, timezoneName);
           const message = buildBurnDownReport({
             now,
+            workedMinutes: burnDown.workedMinutes,
+            targetMinutes: burnDown.targetMinutes,
             remainingMinutes: burnDown.remainingMinutes,
             daysLeft: burnDown.daysLeft,
             requiredMinutesPerDay: burnDown.requiredMinutesPerDay,
@@ -30,4 +32,3 @@ export function startBurnDownScheduler(bot: Telegraf<BotContext>, timezoneName: 
     { timezone: timezoneName }
   );
 }
-

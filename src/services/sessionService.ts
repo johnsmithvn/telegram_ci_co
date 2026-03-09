@@ -4,10 +4,14 @@ import {
   closeSession,
   createOpenSession,
   findOpenSession,
+  getDailyTotalsInDateRange,
+  getMonthWeeklyTotals,
   getWorkedMinutesByDate,
+  getWorkedDayCountInRange,
   getWorkedMinutesInRange,
   insertClosedSession,
-  listOpenSessionsWithUsers
+  listOpenSessionsWithUsers,
+  truncateAllTrackingData
 } from "../db/repositories/sessionRepository";
 import {
   getState,
@@ -23,6 +27,7 @@ import { User, UserState, WeeklySummary, WorkSession } from "../types/domain";
 import {
   KPI_WARNING_THRESHOLD_MINUTES,
   WEEKLY_TARGET_MINUTES,
+  getMonthBounds,
   getLocalDateString,
   getWeekBounds,
   getWeekStartDateString,
@@ -33,6 +38,27 @@ interface TelegramProfile {
   telegramId: number;
   chatId: number;
   name: string | null;
+}
+
+export interface WeekDayItem {
+  date: string;
+  label: string;
+  totalMinutes: number;
+}
+
+export interface WeeklyReportData {
+  days: WeekDayItem[];
+  workedMinutes: number;
+  targetMinutes: number;
+  remainingMinutes: number;
+}
+
+export interface MonthlyReportData {
+  monthLabel: string;
+  totalMinutes: number;
+  averageMinutesPerWorkedDay: number;
+  workedDays: number;
+  weeks: Array<{ weekStartDate: string; totalMinutes: number }>;
 }
 
 function minutesBetween(start: Date, end: Date): number {
@@ -237,6 +263,8 @@ export async function shouldSendKpiWarning(userId: string, now: Date, timezoneNa
 }
 
 export async function getBurnDown(userId: string, now: Date, timezoneName: string): Promise<{
+  workedMinutes: number;
+  targetMinutes: number;
   remainingMinutes: number;
   daysLeft: number;
   requiredMinutesPerDay: number;
@@ -245,7 +273,73 @@ export async function getBurnDown(userId: string, now: Date, timezoneName: strin
   const daysLeft = getWeekdaysLeftForBurndown(now, timezoneName);
   const remainingMinutes = Math.max(0, summary.remainingMinutes);
   const requiredMinutesPerDay = daysLeft > 0 ? Math.ceil(remainingMinutes / daysLeft) : remainingMinutes;
-  return { remainingMinutes, daysLeft, requiredMinutesPerDay };
+  return {
+    workedMinutes: summary.workedMinutes,
+    targetMinutes: summary.targetMinutes,
+    remainingMinutes,
+    daysLeft,
+    requiredMinutesPerDay
+  };
+}
+
+export async function getWeeklyReportData(
+  userId: string,
+  now: Date,
+  timezoneName: string
+): Promise<WeeklyReportData> {
+  const start = dayjs(now).tz(timezoneName).startOf("isoWeek");
+  const end = dayjs(now).tz(timezoneName).endOf("isoWeek");
+  const startDate = start.format("YYYY-MM-DD");
+  const endDate = end.format("YYYY-MM-DD");
+
+  const totals = await getDailyTotalsInDateRange(userId, startDate, endDate);
+  const totalsByDate = new Map(totals.map((item) => [item.workDate, item.totalMinutes]));
+
+  const days: WeekDayItem[] = [];
+  for (let i = 0; i < 7; i += 1) {
+    const d = start.add(i, "day");
+    const date = d.format("YYYY-MM-DD");
+    days.push({
+      date,
+      label: d.format("ddd"),
+      totalMinutes: totalsByDate.get(date) ?? 0
+    });
+  }
+
+  const workedMinutes = days.reduce((sum, item) => sum + item.totalMinutes, 0);
+  return {
+    days,
+    workedMinutes,
+    targetMinutes: WEEKLY_TARGET_MINUTES,
+    remainingMinutes: WEEKLY_TARGET_MINUTES - workedMinutes
+  };
+}
+
+export async function getMonthlyReportData(
+  userId: string,
+  now: Date,
+  timezoneName: string
+): Promise<MonthlyReportData> {
+  const bounds = getMonthBounds(now, timezoneName);
+  const monthStartDate = dayjs(bounds.start).tz(timezoneName).format("YYYY-MM-DD");
+  const monthEndDate = dayjs(bounds.end).tz(timezoneName).format("YYYY-MM-DD");
+
+  const dailyTotals = await getDailyTotalsInDateRange(userId, monthStartDate, monthEndDate);
+  const totalMinutes = dailyTotals.reduce((sum, item) => sum + item.totalMinutes, 0);
+  const workedDays = await getWorkedDayCountInRange(userId, monthStartDate, monthEndDate);
+  const weeklyTotals = await getMonthWeeklyTotals(userId, monthStartDate, monthEndDate);
+
+  return {
+    monthLabel: dayjs(now).tz(timezoneName).format("MMMM YYYY"),
+    totalMinutes,
+    workedDays,
+    averageMinutesPerWorkedDay: workedDays > 0 ? Math.round(totalMinutes / workedDays) : 0,
+    weeks: weeklyTotals
+  };
+}
+
+export async function clearAllData(): Promise<void> {
+  await truncateAllTrackingData();
 }
 
 export async function getAllTrackedUsers(): Promise<User[]> {

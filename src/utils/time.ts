@@ -31,12 +31,24 @@ export function getWeekStartDateString(date: Date, timezoneName: string): string
   return dayjs(date).tz(timezoneName).startOf("isoWeek").format("YYYY-MM-DD");
 }
 
+export function getMonthBounds(date: Date, timezoneName: string): { start: Date; end: Date } {
+  const local = dayjs(date).tz(timezoneName);
+  return {
+    start: local.startOf("month").toDate(),
+    end: local.endOf("month").toDate()
+  };
+}
+
 export function formatClock(date: Date, timezoneName: string): string {
   return dayjs(date).tz(timezoneName).format("HH:mm");
 }
 
 export function formatDateShort(date: Date, timezoneName: string): string {
   return dayjs(date).tz(timezoneName).format("DD/MM");
+}
+
+export function formatMonthLabel(date: Date, timezoneName: string): string {
+  return dayjs(date).tz(timezoneName).format("MMMM YYYY");
 }
 
 export function formatMinutes(totalMinutes: number): string {
@@ -89,15 +101,15 @@ export function parseDateInput(raw: string, timezoneName: string, referenceDate:
 export function getWeekdayNameVi(date: Date, timezoneName: string): string {
   const weekday = dayjs(date).tz(timezoneName).isoWeekday();
   const map: Record<number, string> = {
-    1: "Thứ Hai",
-    2: "Thứ Ba",
-    3: "Thứ Tư",
-    4: "Thứ Năm",
-    5: "Thứ Sáu",
-    6: "Thứ Bảy",
-    7: "Chủ Nhật"
+    1: "Thu Hai",
+    2: "Thu Ba",
+    3: "Thu Tu",
+    4: "Thu Nam",
+    5: "Thu Sau",
+    6: "Thu Bay",
+    7: "Chu Nhat"
   };
-  return map[weekday] ?? "Hôm nay";
+  return map[weekday] ?? "Hom nay";
 }
 
 export function getWeekdaysLeftForBurndown(date: Date, timezoneName: string): number {
@@ -107,3 +119,26 @@ export function getWeekdaysLeftForBurndown(date: Date, timezoneName: string): nu
   }
   return 5 - weekday;
 }
+
+export function isMonthEnd(date: Date, timezoneName: string): boolean {
+  const local = dayjs(date).tz(timezoneName);
+  return local.isSame(local.endOf("month"), "day");
+}
+
+export function buildProgressBar(workedMinutes: number, targetMinutes: number, width = 16): string {
+  if (targetMinutes <= 0) {
+    return "[----------------]";
+  }
+  const ratio = Math.max(0, Math.min(1, workedMinutes / targetMinutes));
+  const done = Math.round(ratio * width);
+  return `[${"#".repeat(done)}${"-".repeat(Math.max(0, width - done))}]`;
+}
+
+export function getWeekdayKey(date: Date, timezoneName: string): string {
+  return dayjs(date).tz(timezoneName).format("ddd");
+}
+
+export function toDateOnly(date: Date, timezoneName: string): string {
+  return dayjs(date).tz(timezoneName).format("YYYY-MM-DD");
+}
+

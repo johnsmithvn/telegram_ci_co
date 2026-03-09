@@ -14,6 +14,17 @@ const envSchema = z.object({
     .pipe(z.number().int().positive()),
   WEBHOOK_URL: z.string().url().optional(),
   KEEP_AWAKE_URL: z.string().url().optional(),
+  ADMIN_TELEGRAM_IDS: z
+    .string()
+    .optional()
+    .transform((value) =>
+      value
+        ? value
+            .split(",")
+            .map((item) => item.trim())
+            .filter(Boolean)
+        : []
+    ),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development")
 });

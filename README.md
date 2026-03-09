@@ -1,6 +1,6 @@
 # Telegram Work Bot (44h/week KPI)
 
-Telegram bot time-tracking cho check-in/check-out, bám KPI 44h/tuần, có burn-down report, nhắc quên checkout, và nhập giờ thủ công.
+Telegram bot time-tracking cho check-in/check-out, theo KPI 44h/tuan, co burn-down, report theo ngay/tuan/thang, nhac quen checkout, va nhap gio thu cong.
 
 ## Stack
 
@@ -8,26 +8,35 @@ Telegram bot time-tracking cho check-in/check-out, bám KPI 44h/tuần, có burn
 - Telegraf + Express
 - PostgreSQL (Supabase compatible)
 - node-cron
-- Docker + Fly.io
+- Docker + Fly.io / Render
 
 ## Features
 
-- Reply keyboard luôn hiển thị:
+- Reply keyboard:
   - `🟢 Check-in`
   - `🔴 Check-out`
-- Chỉ cho phép 1 session `OPEN` cho mỗi user (enforced ở DB bằng partial unique index).
-- Check-out tính thời lượng phiên, tổng hôm nay, tổng tuần, còn thiếu KPI.
-- Burn-down report lúc `17:30` từ Thứ 2 đến Thứ 6.
-- KPI warning mỗi 5 phút khi user đang làm và đạt mốc `43h50`.
-- Nhắc quên checkout lúc `23:59` nếu còn session mở.
-- Nhập số giờ trực tiếp để đóng phiên mở thủ công (ví dụ `8`, `8.5`).
-- Lệnh thêm giờ cho ngày cũ:
-  - `/add` (flow hỏi ngày rồi hỏi giờ)
-  - `/add YYYY-MM-DD 8.5`
+- 1 user chi co toi da 1 session `OPEN` (partial unique index trong DB).
+- Check-out tinh thoi luong session, tong hom nay, tong tuan, con thieu KPI.
+- Burn-down report luc `17:30` (Thu 2 -> Thu 6) + progress bar.
+- KPI warning moi 5 phut khi gan moc `43h50`.
+- Nhac quen checkout luc `23:59`.
+- Manual hours:
+  - nhap so gio truc tiep (vi du `8`, `8.5`) de dong session mo.
+  - `/add` flow nhap ngay + so gio.
+  - `/add YYYY-MM-DD 8.5`.
+- Bao cao nhanh:
+  - `/today`
+  - `/week`
+  - `/month`
+- Summary scheduler:
+  - `Sun 21:00`: weekly summary
+  - `21:05` ngay cuoi thang: monthly summary
+- Admin reset data:
+  - `/resetall CONFIRM` (chi user nam trong `ADMIN_TELEGRAM_IDS`)
 
 ## Environment
 
-Copy `.env.example` thành `.env`:
+Copy `.env.example` thanh `.env`:
 
 ```env
 BOT_TOKEN=...
@@ -36,6 +45,7 @@ TIMEZONE=Asia/Ho_Chi_Minh
 PORT=3000
 WEBHOOK_URL=https://your-app.fly.dev
 # KEEP_AWAKE_URL=https://your-app.fly.dev/health
+# ADMIN_TELEGRAM_IDS=123456789,987654321
 LOG_LEVEL=info
 NODE_ENV=production
 ```
@@ -48,8 +58,8 @@ npm run db:init
 npm run dev
 ```
 
-- Nếu có `WEBHOOK_URL`: bot chạy webhook qua `POST /telegram/webhook`.
-- Nếu không có `WEBHOOK_URL`: bot chạy polling (dev-friendly).
+- Neu co `WEBHOOK_URL`: bot dung webhook qua `POST /telegram/webhook`.
+- Neu khong co `WEBHOOK_URL`: bot dung long polling.
 
 ## Build & Start
 
@@ -61,24 +71,22 @@ npm run start
 
 ## Database Schema
 
-Schema nằm ở [src/db/schema.sql](/d:/Development/Workspace/Python_Projects/telegram_ci_co/src/db/schema.sql).
+Schema: [src/db/schema.sql](/d:/Development/Workspace/Python_Projects/telegram_ci_co/src/db/schema.sql)
 
-Các bảng chính:
+Bang chinh:
 
 - `users`
 - `work_sessions`
 - `user_state`
-
-Các enum chính:
-
-- `work_session_status`: `OPEN`, `CLOSED`
-- `work_session_source`: `normal`, `manual`, `auto`
 
 ## Scheduler Cron
 
 - Burn-down: `30 17 * * 1-5`
 - Forgot checkout: `59 23 * * *`
 - KPI warning: `*/5 * * * *`
+- Weekly summary: `0 21 * * 0`
+- Monthly summary: `5 21 * * *` (chi gui vao ngay cuoi thang)
+- Keep awake (optional): `*/14 * * * *`
 
 ## Deploy Fly.io
 
@@ -92,28 +100,22 @@ Health check: `GET /health`
 
 ## Deploy Render (Free Tier) + Keep Awake
 
-1. Deploy Web Service len Render tu source nay.
-2. Set env vars tren Render:
+1. Deploy web service len Render.
+2. Set env vars:
    - `NODE_ENV=production`
-   - `BOT_TOKEN=...`
-   - `DATABASE_URL=...`
+   - `BOT_TOKEN`
+   - `DATABASE_URL`
    - `TIMEZONE=Asia/Ho_Chi_Minh`
    - `WEBHOOK_URL=https://<your-service>.onrender.com`
-3. Sau deploy, health endpoint dung de ping la:
+3. Ping endpoint:
    - `https://<your-service>.onrender.com/health`
-4. Dung UptimeRobot/Better Stack tao HTTP monitor ping `/health` dinh ky.
-   - Dat interval `14 minutes`.
-5. (Optional) Bat ping noi bo moi 14 phut bang env:
+4. Tao monitor tren UptimeRobot/Better Stack:
+   - interval `14 minutes`
+5. Optional keep-awake ping noi bo:
    - `KEEP_AWAKE_URL=https://<your-service>.onrender.com/health`
-   - Tinh nang nay bo sung, khong thay the ping tu ben ngoai.
 6. Set Telegram webhook:
 
 ```bash
 curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://<your-service>.onrender.com/telegram/webhook"
 ```
 
-Goi test:
-
-```bash
-curl https://<your-service>.onrender.com/health
-```

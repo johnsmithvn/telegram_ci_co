@@ -1,5 +1,5 @@
 import { WeeklySummary } from "../types/domain";
-import { formatClock, formatDateShort, formatMinutes, getWeekdayNameVi } from "../utils/time";
+import { buildProgressBar, formatClock, formatDateShort, formatMinutes, getWeekdayNameVi } from "../utils/time";
 
 export function buildCheckInSuccessMessage(startTime: Date, timezoneName: string): string {
   return [
@@ -44,6 +44,8 @@ export function buildCheckOutMessage(input: {
 
 export function buildBurnDownReport(input: {
   now: Date;
+  workedMinutes: number;
+  targetMinutes: number;
   remainingMinutes: number;
   daysLeft: number;
   requiredMinutesPerDay: number;
@@ -52,13 +54,15 @@ export function buildBurnDownReport(input: {
   const dayName = getWeekdayNameVi(input.now, input.timezoneName);
   const remaining = formatMinutes(Math.max(0, input.remainingMinutes));
   const required = formatMinutes(Math.max(0, input.requiredMinutesPerDay));
-  const daysLeftText = input.daysLeft === 1 ? "1 ngày làm việc" : `${input.daysLeft} ngày làm việc`;
+  const daysLeftText = input.daysLeft === 1 ? "1 ngay lam viec" : `${input.daysLeft} ngay lam viec`;
+  const progressBar = buildProgressBar(input.workedMinutes, input.targetMinutes);
 
   return [
-    "Báo cáo tình hình lúc 17:30!",
-    `Hôm nay là ${dayName}, bạn hiện đang nợ KPI ${remaining}.`,
-    `💡 Chiến thuật cày bù: từ giờ đến hết tuần còn ${daysLeftText}, mỗi ngày cần ${required}.`,
-    "Đừng để dồn cuối tuần rồi cày hộc máu."
+    "Bao cao tinh hinh luc 17:30!",
+    `Hom nay la ${dayName}, ban hien dang no KPI ${remaining}.`,
+    `${progressBar} ${formatMinutes(input.workedMinutes)} / ${formatMinutes(input.targetMinutes)}`,
+    `Chien thuat cay bu: tu gio den het tuan con ${daysLeftText}, moi ngay can ${required}.`,
+    "Dung de don cuoi tuan roi cay hoc mau."
   ].join("\n");
 }
 
@@ -111,8 +115,103 @@ export function buildHelpMessage(): string {
     "🟢 Check-in",
     "🔴 Check-out",
     "",
-    "Lệnh thêm giờ thủ công:",
-    "`/add` (nhập từng bước) hoặc `/add YYYY-MM-DD 8.5`"
+    "Bao cao nhanh:",
+    "`/today` | `/week` | `/month`",
+    "",
+    "Lenh them gio thu cong:",
+    "`/add` (nhap tung buoc) hoac `/add YYYY-MM-DD 8.5`",
+    "",
+    "Admin reset toan bo du lieu:",
+    "`/resetall CONFIRM`"
   ].join("\n");
+}
+
+export function buildTodayReportMessage(todayMinutes: number): string {
+  const lines = [`Hom nay: ${formatMinutes(todayMinutes)}.`];
+  if (todayMinutes >= 10 * 60) {
+    lines.push("Canh bao: hom nay ban da lam > 10h. Nghi mot chut nhe.");
+  }
+  return lines.join("\n");
+}
+
+export function buildWeekReportMessage(input: {
+  days: Array<{ label: string; totalMinutes: number }>;
+  workedMinutes: number;
+  targetMinutes: number;
+  remainingMinutes: number;
+}): string {
+  const progressBar = buildProgressBar(input.workedMinutes, input.targetMinutes);
+  const dayLines = input.days.map((item) => `${item.label}: ${formatMinutes(item.totalMinutes)}`);
+  const remaining =
+    input.remainingMinutes > 0
+      ? `Con thieu: ${formatMinutes(input.remainingMinutes)}`
+      : `Da vuot: ${formatMinutes(Math.abs(input.remainingMinutes))}`;
+
+  return [
+    "Weekly Report",
+    "",
+    ...dayLines,
+    "",
+    `${progressBar} ${formatMinutes(input.workedMinutes)} / ${formatMinutes(input.targetMinutes)}`,
+    remaining
+  ].join("\n");
+}
+
+export function buildMonthReportMessage(input: {
+  monthLabel: string;
+  totalMinutes: number;
+  averageMinutesPerWorkedDay: number;
+  workedDays: number;
+  weeks: Array<{ weekStartDate: string; totalMinutes: number }>;
+}): string {
+  const weekLines =
+    input.weeks.length > 0
+      ? input.weeks.map(
+          (item, index) =>
+            `Week ${index + 1} (${item.weekStartDate}): ${formatMinutes(item.totalMinutes)}`
+        )
+      : ["Chua co du lieu thang nay."];
+
+  return [
+    `Monthly Report - ${input.monthLabel}`,
+    "",
+    `Total hours: ${formatMinutes(input.totalMinutes)}`,
+    `Average/day: ${
+      input.workedDays > 0 ? formatMinutes(input.averageMinutesPerWorkedDay) : "0h00m"
+    } (tren ${input.workedDays} ngay co log)`,
+    "",
+    ...weekLines
+  ].join("\n");
+}
+
+export function buildWeeklySchedulerMessage(input: {
+  days: Array<{ label: string; totalMinutes: number }>;
+  workedMinutes: number;
+  targetMinutes: number;
+  remainingMinutes: number;
+}): string {
+  return ["Weekly summary cuoi tuan:", buildWeekReportMessage(input)].join("\n\n");
+}
+
+export function buildMonthlySchedulerMessage(input: {
+  monthLabel: string;
+  totalMinutes: number;
+  averageMinutesPerWorkedDay: number;
+  workedDays: number;
+  weeks: Array<{ weekStartDate: string; totalMinutes: number }>;
+}): string {
+  return ["Tong ket cuoi thang:", buildMonthReportMessage(input)].join("\n\n");
+}
+
+export function buildResetDeniedMessage(): string {
+  return "Ban khong co quyen chay lenh reset.";
+}
+
+export function buildResetConfirmMessage(): string {
+  return "Lenh nay rat nguy hiem. Dung `/resetall CONFIRM` de xoa toan bo du lieu.";
+}
+
+export function buildResetSuccessMessage(): string {
+  return "Da xoa toan bo du lieu tracking. Bot reset ve trang thai moi.";
 }
 

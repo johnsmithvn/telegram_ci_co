@@ -23,6 +23,16 @@ interface OpenSessionWithUserRow extends SessionRow {
   name: string | null;
 }
 
+interface DailyTotalRow {
+  work_date: string;
+  total: string;
+}
+
+interface WeeklyTotalInMonthRow {
+  week_start: string;
+  total: string;
+}
+
 function mapSession(row: SessionRow): WorkSession {
   return {
     id: row.id,
@@ -197,4 +207,82 @@ export async function listOpenSessionsWithUsers(): Promise<
       name: row.name
     }
   }));
+}
+
+export async function getDailyTotalsInDateRange(
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<Array<{ workDate: string; totalMinutes: number }>> {
+  const result = await query<DailyTotalRow>(
+    `
+      SELECT work_date::text AS work_date, COALESCE(SUM(duration_minutes), 0)::text AS total
+      FROM work_sessions
+      WHERE user_id = $1
+        AND status = 'CLOSED'
+        AND work_date >= $2::date
+        AND work_date <= $3::date
+      GROUP BY work_date
+      ORDER BY work_date ASC
+    `,
+    [userId, startDate, endDate]
+  );
+
+  return result.rows.map((row) => ({
+    workDate: row.work_date,
+    totalMinutes: Number(row.total)
+  }));
+}
+
+export async function getMonthWeeklyTotals(
+  userId: string,
+  monthStartDate: string,
+  monthEndDate: string
+): Promise<Array<{ weekStartDate: string; totalMinutes: number }>> {
+  const result = await query<WeeklyTotalInMonthRow>(
+    `
+      SELECT DATE_TRUNC('week', work_date::timestamp)::date::text AS week_start,
+             COALESCE(SUM(duration_minutes), 0)::text AS total
+      FROM work_sessions
+      WHERE user_id = $1
+        AND status = 'CLOSED'
+        AND work_date >= $2::date
+        AND work_date <= $3::date
+      GROUP BY DATE_TRUNC('week', work_date::timestamp)::date
+      ORDER BY DATE_TRUNC('week', work_date::timestamp)::date ASC
+    `,
+    [userId, monthStartDate, monthEndDate]
+  );
+
+  return result.rows.map((row) => ({
+    weekStartDate: row.week_start,
+    totalMinutes: Number(row.total)
+  }));
+}
+
+export async function getWorkedDayCountInRange(
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<number> {
+  const result = await query<{ total: string }>(
+    `
+      SELECT COALESCE(COUNT(DISTINCT work_date), 0)::text AS total
+      FROM work_sessions
+      WHERE user_id = $1
+        AND status = 'CLOSED'
+        AND work_date >= $2::date
+        AND work_date <= $3::date
+    `,
+    [userId, startDate, endDate]
+  );
+  return Number(result.rows[0]?.total ?? 0);
+}
+
+export async function truncateAllTrackingData(): Promise<void> {
+  await query(
+    `
+      TRUNCATE TABLE user_state, work_sessions, users RESTART IDENTITY CASCADE
+    `
+  );
 }
