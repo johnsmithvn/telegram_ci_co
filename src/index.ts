@@ -28,7 +28,7 @@ async function bootstrap(): Promise<void> {
     logger.info("Telegram bot started in polling mode");
   }
 
-  startSchedulers(bot, env.TIMEZONE);
+  startSchedulers(bot, env.TIMEZONE, env.KEEP_AWAKE_URL);
   logger.info("Schedulers started");
 
   const server = app.listen(env.PORT, () => {
@@ -56,4 +56,3 @@ bootstrap().catch(async (error) => {
   await pool.end();
   process.exit(1);
 });
-

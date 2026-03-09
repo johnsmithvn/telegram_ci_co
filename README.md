@@ -35,6 +35,7 @@ DATABASE_URL=...
 TIMEZONE=Asia/Ho_Chi_Minh
 PORT=3000
 WEBHOOK_URL=https://your-app.fly.dev
+# KEEP_AWAKE_URL=https://your-app.fly.dev/health
 LOG_LEVEL=info
 NODE_ENV=production
 ```
@@ -89,3 +90,30 @@ fly deploy
 
 Health check: `GET /health`
 
+## Deploy Render (Free Tier) + Keep Awake
+
+1. Deploy Web Service len Render tu source nay.
+2. Set env vars tren Render:
+   - `NODE_ENV=production`
+   - `BOT_TOKEN=...`
+   - `DATABASE_URL=...`
+   - `TIMEZONE=Asia/Ho_Chi_Minh`
+   - `WEBHOOK_URL=https://<your-service>.onrender.com`
+3. Sau deploy, health endpoint dung de ping la:
+   - `https://<your-service>.onrender.com/health`
+4. Dung UptimeRobot/Better Stack tao HTTP monitor ping `/health` dinh ky.
+   - Dat interval `14 minutes`.
+5. (Optional) Bat ping noi bo moi 14 phut bang env:
+   - `KEEP_AWAKE_URL=https://<your-service>.onrender.com/health`
+   - Tinh nang nay bo sung, khong thay the ping tu ben ngoai.
+6. Set Telegram webhook:
+
+```bash
+curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://<your-service>.onrender.com/telegram/webhook"
+```
+
+Goi test:
+
+```bash
+curl https://<your-service>.onrender.com/health
+```
