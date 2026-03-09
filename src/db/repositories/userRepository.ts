@@ -6,6 +6,7 @@ interface UserRow {
   telegram_id: string;
   chat_id: string;
   name: string | null;
+  is_active: boolean;
   created_at: Date;
 }
 
@@ -15,6 +16,7 @@ function mapUser(row: UserRow): User {
     telegramId: row.telegram_id,
     chatId: row.chat_id,
     name: row.name,
+    isActive: row.is_active,
     createdAt: row.created_at
   };
 }
@@ -40,18 +42,41 @@ export async function upsertUser(input: {
       DO UPDATE SET
         chat_id = EXCLUDED.chat_id,
         name = EXCLUDED.name
-      RETURNING id, telegram_id, chat_id, name, created_at
+      RETURNING id, telegram_id, chat_id, name, is_active, created_at
     `,
     [input.telegramId, input.chatId, input.name ?? null]
   );
   return mapUser(firstRowOrThrow(result.rows, "upsertUser"));
 }
 
+export async function reactivateUser(input: {
+  telegramId: number;
+  chatId: number;
+  name?: string | null;
+}): Promise<User> {
+  const result = await query<UserRow>(
+    `
+      INSERT INTO users (telegram_id, chat_id, name, is_active, deactivated_at)
+      VALUES ($1, $2, $3, TRUE, NULL)
+      ON CONFLICT (telegram_id)
+      DO UPDATE SET
+        chat_id = EXCLUDED.chat_id,
+        name = EXCLUDED.name,
+        is_active = TRUE,
+        deactivated_at = NULL
+      RETURNING id, telegram_id, chat_id, name, is_active, created_at
+    `,
+    [input.telegramId, input.chatId, input.name ?? null]
+  );
+  return mapUser(firstRowOrThrow(result.rows, "reactivateUser"));
+}
+
 export async function getAllUsers(): Promise<User[]> {
   const result = await query<UserRow>(
     `
-      SELECT id, telegram_id, chat_id, name, created_at
+      SELECT id, telegram_id, chat_id, name, is_active, created_at
       FROM users
+      WHERE is_active = TRUE
       ORDER BY created_at ASC
     `
   );
@@ -61,7 +86,7 @@ export async function getAllUsers(): Promise<User[]> {
 export async function getUserById(userId: string): Promise<User | null> {
   const result = await query<UserRow>(
     `
-      SELECT id, telegram_id, chat_id, name, created_at
+      SELECT id, telegram_id, chat_id, name, is_active, created_at
       FROM users
       WHERE id = $1
       LIMIT 1

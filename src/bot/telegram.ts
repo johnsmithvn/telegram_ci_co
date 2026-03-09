@@ -14,7 +14,9 @@ import {
   handleWeekCommand
 } from "../handlers/reportCommands";
 import { handleStart } from "../handlers/start";
+import { handleStopCommand } from "../handlers/stop";
 import { logger } from "../logger";
+import { reactivateUserForBot } from "../services/sessionService";
 import { parseHoursInput } from "../utils/time";
 
 export function createTelegramBot(botToken: string, timezoneName: string): Telegraf<BotContext> {
@@ -23,6 +25,15 @@ export function createTelegramBot(botToken: string, timezoneName: string): Teleg
   bot.use(attachTrackedUser);
 
   bot.start(async (ctx) => {
+    if (ctx.from && ctx.chat && ctx.chat.type === "private") {
+      const user = await reactivateUserForBot({
+        telegramId: ctx.from.id,
+        chatId: ctx.chat.id,
+        name: [ctx.from.first_name, ctx.from.last_name].filter(Boolean).join(" ").trim() || ctx.from.username || null
+      });
+      ctx.state.trackedUser = user;
+      ctx.state.inactiveUser = false;
+    }
     await handleStart(ctx);
   });
 
@@ -50,6 +61,16 @@ export function createTelegramBot(botToken: string, timezoneName: string): Teleg
   bot.command("resetall", async (ctx) => {
     const text = "text" in ctx.message ? ctx.message.text : "/resetall";
     await handleResetAllCommand(ctx, text, env.ADMIN_TELEGRAM_IDS);
+  });
+
+  bot.command("stop", async (ctx) => {
+    const text = "text" in ctx.message ? ctx.message.text : "/stop";
+    await handleStopCommand(ctx, text);
+  });
+
+  bot.command("stopme", async (ctx) => {
+    const text = "text" in ctx.message ? ctx.message.text : "/stopme";
+    await handleStopCommand(ctx, text);
   });
 
   bot.hears(CHECKIN_LABEL, async (ctx) => {

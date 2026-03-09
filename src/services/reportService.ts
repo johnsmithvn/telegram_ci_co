@@ -121,6 +121,9 @@ export function buildHelpMessage(): string {
     "Lenh them gio thu cong:",
     "`/add` (nhap tung buoc) hoac `/add YYYY-MM-DD 8.5`",
     "",
+    "Dung bot cho chinh ban:",
+    "`/stop CONFIRM`",
+    "",
     "Admin reset toan bo du lieu:",
     "`/resetall CONFIRM`"
   ].join("\n");
@@ -215,3 +218,18 @@ export function buildResetSuccessMessage(): string {
   return "Da xoa toan bo du lieu tracking. Bot reset ve trang thai moi.";
 }
 
+export function buildStopConfirmMessage(): string {
+  return "Lenh nay se xoa toan bo du lieu cua ban va dung bot cho tai khoan nay. Dung `/stop CONFIRM` de tiep tuc.";
+}
+
+export function buildStopSuccessMessage(deletedSessions: number): string {
+  return [
+    "Da dung bot cho tai khoan nay.",
+    `Da xoa ${deletedSessions} session cua ban.`,
+    "Neu muon dung lai, gui `/start`."
+  ].join("\n");
+}
+
+export function buildAlreadyStoppedMessage(): string {
+  return "Tai khoan nay dang o trang thai da stop. Gui `/start` de bat lai.";
+}

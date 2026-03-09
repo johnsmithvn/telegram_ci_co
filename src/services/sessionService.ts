@@ -20,7 +20,7 @@ import {
   setKpiWarningWeek,
   setPendingManualEntry
 } from "../db/repositories/stateRepository";
-import { getAllUsers, upsertUser } from "../db/repositories/userRepository";
+import { getAllUsers, reactivateUser, upsertUser } from "../db/repositories/userRepository";
 import { withTransaction } from "../db/postgres";
 import { logger } from "../logger";
 import { User, UserState, WeeklySummary, WorkSession } from "../types/domain";
@@ -108,6 +108,50 @@ export async function ensureUser(profile: TelegramProfile): Promise<User> {
   });
   await getState(user.id);
   return user;
+}
+
+export async function reactivateUserForBot(profile: TelegramProfile): Promise<User> {
+  const user = await reactivateUser({
+    telegramId: profile.telegramId,
+    chatId: profile.chatId,
+    name: profile.name
+  });
+  await getState(user.id);
+  return user;
+}
+
+export async function stopAndPurgeUserData(userId: string): Promise<{ deletedSessions: number }> {
+  return withTransaction(async (client) => {
+    const deletedSessionsResult = await client.query(
+      `
+        DELETE FROM work_sessions
+        WHERE user_id = $1
+      `,
+      [userId]
+    );
+
+    await client.query(
+      `
+        DELETE FROM user_state
+        WHERE user_id = $1
+      `,
+      [userId]
+    );
+
+    await client.query(
+      `
+        UPDATE users
+        SET is_active = FALSE,
+            deactivated_at = NOW()
+        WHERE id = $1
+      `,
+      [userId]
+    );
+
+    return {
+      deletedSessions: deletedSessionsResult.rowCount ?? 0
+    };
+  });
 }
 
 export async function checkIn(userId: string, now: Date, timezoneName: string): Promise<{

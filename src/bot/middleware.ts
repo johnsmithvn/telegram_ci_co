@@ -16,6 +16,12 @@ export async function attachTrackedUser(
     name: [ctx.from.first_name, ctx.from.last_name].filter(Boolean).join(" ").trim() || ctx.from.username || null
   });
 
+  if (!user.isActive) {
+    ctx.state.inactiveUser = true;
+    await next();
+    return;
+  }
+
   ctx.state.trackedUser = user;
   await next();
 }

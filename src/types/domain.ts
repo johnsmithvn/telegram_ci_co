@@ -8,6 +8,7 @@ export interface User {
   telegramId: string;
   chatId: string;
   name: string | null;
+  isActive: boolean;
   createdAt: Date;
 }
 
@@ -41,4 +42,3 @@ export interface WeeklySummary {
   remainingMinutes: number;
   targetMinutes: number;
 }
-

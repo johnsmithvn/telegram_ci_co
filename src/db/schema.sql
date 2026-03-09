@@ -21,8 +21,20 @@ CREATE TABLE IF NOT EXISTS users (
   telegram_id BIGINT NOT NULL UNIQUE,
   chat_id BIGINT NOT NULL UNIQUE,
   name TEXT,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  deactivated_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
+
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS deactivated_at TIMESTAMPTZ;
+
+CREATE INDEX IF NOT EXISTS users_active_idx
+  ON users(is_active)
+  WHERE is_active = TRUE;
 
 CREATE TABLE IF NOT EXISTS work_sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -79,4 +91,3 @@ CREATE TRIGGER trg_user_state_updated_at
 BEFORE UPDATE ON user_state
 FOR EACH ROW
 EXECUTE FUNCTION set_updated_at();
-

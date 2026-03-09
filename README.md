@@ -33,6 +33,8 @@ Telegram bot time-tracking cho check-in/check-out, theo KPI 44h/tuan, co burn-do
   - `21:05` ngay cuoi thang: monthly summary
 - Admin reset data:
   - `/resetall CONFIRM` (chi user nam trong `ADMIN_TELEGRAM_IDS`)
+- User self-stop:
+  - `/stop CONFIRM` (xoa du lieu cua chinh user va ngung bot cho user do)
 
 ## Environment
 
@@ -118,4 +120,3 @@ Health check: `GET /health`
 ```bash
 curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://<your-service>.onrender.com/telegram/webhook"
 ```
-
