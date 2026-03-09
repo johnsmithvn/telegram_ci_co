@@ -1,0 +1,43 @@
+import cron, { ScheduledTask } from "node-cron";
+import { Telegraf } from "telegraf";
+import { BotContext } from "../bot/context";
+import { logger } from "../logger";
+import { buildForgotCheckoutPrompt } from "../services/reportService";
+import {
+  getOpenSessionsForReminder,
+  getUserState,
+  markForgotPrompt,
+  setPendingManual
+} from "../services/sessionService";
+import { getLocalDateString } from "../utils/time";
+
+export function startForgotCheckoutScheduler(
+  bot: Telegraf<BotContext>,
+  timezoneName: string
+): ScheduledTask {
+  return cron.schedule(
+    "59 23 * * *",
+    async () => {
+      try {
+        const now = new Date();
+        const today = getLocalDateString(now, timezoneName);
+        const openSessions = await getOpenSessionsForReminder();
+
+        for (const row of openSessions) {
+          const state = await getUserState(row.user.id);
+          if (state.lastForgotCheckoutPromptDate === today) {
+            continue;
+          }
+
+          await bot.telegram.sendMessage(Number(row.user.chatId), buildForgotCheckoutPrompt());
+          await setPendingManual(row.user.id, row.session.id, row.session.workDate);
+          await markForgotPrompt(row.user.id, today);
+        }
+      } catch (error) {
+        logger.error({ error }, "Forgot-checkout scheduler failed");
+      }
+    },
+    { timezone: timezoneName }
+  );
+}
+
