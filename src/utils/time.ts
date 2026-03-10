@@ -142,3 +142,31 @@ export function toDateOnly(date: Date, timezoneName: string): string {
   return dayjs(date).tz(timezoneName).format("YYYY-MM-DD");
 }
 
+export interface AddFlowDayChoice {
+  key: "T2" | "T3" | "T4" | "T5" | "T6" | "T7";
+  date: string;
+  label: string;
+}
+
+export function getAddFlowDayChoices(
+  timezoneName: string,
+  referenceDate: Date = new Date()
+): AddFlowDayChoice[] {
+  const keys: AddFlowDayChoice["key"][] = ["T2", "T3", "T4", "T5", "T6", "T7"];
+  const weekStart = dayjs(referenceDate).tz(timezoneName).startOf("isoWeek");
+
+  return keys.map((key, index) => {
+    const day = weekStart.add(index, "day");
+    const date = day.format("YYYY-MM-DD");
+    return {
+      key,
+      date,
+      label: `${key} ${day.format("DD-MM")} (${date})`
+    };
+  });
+}
+
+export function parseAddFlowDateFromChoice(text: string): string | null {
+  const match = text.trim().match(/(\d{4}-\d{2}-\d{2})/);
+  return match?.[1] ?? null;
+}

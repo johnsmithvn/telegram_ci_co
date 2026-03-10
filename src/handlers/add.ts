@@ -1,4 +1,4 @@
-import { buildMainKeyboard } from "../bot/keyboard";
+import { buildAddDayKeyboard, buildMainKeyboard } from "../bot/keyboard";
 import { BotContext } from "../bot/context";
 import {
   buildAddAskDateMessage,
@@ -14,7 +14,29 @@ import {
   getUserState,
   setAddFlowDate
 } from "../services/sessionService";
-import { parseDateInput, parseHoursInput } from "../utils/time";
+import {
+  getAddFlowDayChoices,
+  parseAddFlowDateFromChoice,
+  parseDateInput,
+  parseHoursInput
+} from "../utils/time";
+
+function resolveAddDateInput(rawText: string, timezoneName: string): string | null {
+  const trimmed = rawText.trim();
+  const choices = getAddFlowDayChoices(timezoneName);
+
+  const byShortcut = choices.find((item) => item.key === trimmed.toUpperCase());
+  if (byShortcut) {
+    return byShortcut.date;
+  }
+
+  const byLabel = choices.find((item) => item.label === trimmed);
+  if (byLabel) {
+    return byLabel.date;
+  }
+
+  return parseAddFlowDateFromChoice(trimmed) ?? parseDateInput(trimmed, timezoneName);
+}
 
 export async function handleAddCommand(ctx: BotContext, text: string, timezoneName: string): Promise<void> {
   const user = ctx.state.trackedUser;
@@ -29,19 +51,22 @@ export async function handleAddCommand(ctx: BotContext, text: string, timezoneNa
 
   if (args.length === 0) {
     await beginAddFlow(user.id);
-    await ctx.reply(buildAddAskDateMessage(), { ...buildMainKeyboard() });
+    const choices = getAddFlowDayChoices(timezoneName);
+    await ctx.reply(buildAddAskDateMessage(), { ...buildAddDayKeyboard(choices) });
     return;
   }
 
   const rawDate = args[0];
   if (!rawDate) {
-    await ctx.reply(buildInvalidDateMessage(), { ...buildMainKeyboard() });
+    const choices = getAddFlowDayChoices(timezoneName);
+    await ctx.reply(buildInvalidDateMessage(), { ...buildAddDayKeyboard(choices) });
     return;
   }
 
-  const parsedDate = parseDateInput(rawDate, timezoneName);
+  const parsedDate = resolveAddDateInput(rawDate, timezoneName);
   if (!parsedDate) {
-    await ctx.reply(buildInvalidDateMessage(), { ...buildMainKeyboard() });
+    const choices = getAddFlowDayChoices(timezoneName);
+    await ctx.reply(buildInvalidDateMessage(), { ...buildAddDayKeyboard(choices) });
     return;
   }
 
@@ -86,9 +111,10 @@ export async function handleAddFlowMessage(
   }
 
   if (state.addFlowStep === "WAITING_DATE") {
-    const parsedDate = parseDateInput(text, timezoneName);
+    const parsedDate = resolveAddDateInput(text, timezoneName);
     if (!parsedDate) {
-      await ctx.reply(buildInvalidDateMessage(), { ...buildMainKeyboard() });
+      const choices = getAddFlowDayChoices(timezoneName);
+      await ctx.reply(buildInvalidDateMessage(), { ...buildAddDayKeyboard(choices) });
       return true;
     }
     await setAddFlowDate(user.id, parsedDate);

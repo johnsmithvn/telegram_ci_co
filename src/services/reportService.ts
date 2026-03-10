@@ -33,7 +33,7 @@ export function buildCheckOutMessage(input: {
   return [
     "Xong phim!",
     "",
-    `Ca này bác cày được ${formatMinutes(input.sessionMinutes)}.`,
+    `Ca nay ban lam duoc ${formatMinutes(input.sessionMinutes)} (da tru 1h nghi trua).`,
     "",
     `📊 Tổng kết ngày hôm nay (${formatDateShort(input.checkoutTime, input.timezoneName)}):`,
     `- Đã cày được: ${formatMinutes(input.todayWorkedMinutes)} / 44h.`,
@@ -90,7 +90,7 @@ export function buildManualPastDayAddedMessage(workDate: string, hours: number):
 }
 
 export function buildAddAskDateMessage(): string {
-  return "Ngày nào? Gửi theo dạng `DD-MM` hoặc `YYYY-MM-DD`.";
+  return "Chon ngay can add bang nut T2 -> T7 ben duoi (hoac nhap YYYY-MM-DD).";
 }
 
 export function buildAddAskHoursMessage(workDate: string): string {
@@ -98,7 +98,7 @@ export function buildAddAskHoursMessage(workDate: string): string {
 }
 
 export function buildInvalidDateMessage(): string {
-  return "Mình chưa hiểu ngày này. Dùng `DD-MM` hoặc `YYYY-MM-DD` nhé.";
+  return "Ngay chua hop le. Bam nut T2 -> T7 hoac nhap YYYY-MM-DD.";
 }
 
 export function buildWeekInvalidDateMessage(): string {
@@ -127,10 +127,10 @@ export function buildHelpMessage(): string {
     "`/today` | `/week` | `/week YYYY-MM-DD` | `/month`",
     "",
     "Lenh them gio thu cong:",
-    "`/add` (nhap tung buoc) hoac `/add YYYY-MM-DD 8.5`",
+    "`/add` (chon T2-T7 roi nhap gio) hoac `/add YYYY-MM-DD 8.5`",
     "",
     "Dung bot cho chinh ban:",
-    "`/stop CONFIRM`",
+    "`/stop` (bot se hoi Yes/No)",
     "",
     "Admin reset toan bo du lieu:",
     "`/resetall CONFIRM`"
@@ -233,7 +233,11 @@ export function buildResetSuccessMessage(): string {
 }
 
 export function buildStopConfirmMessage(): string {
-  return "Lenh nay se xoa toan bo du lieu cua ban va dung bot cho tai khoan nay. Dung `/stop CONFIRM` de tiep tuc.";
+  return "Ban chac chan muon stop? Du lieu cua ban se bi xoa. Bam Yes/No ben duoi.";
+}
+
+export function buildStopCancelledMessage(): string {
+  return "Da huy stop. Ban tiep tuc dung bot binh thuong.";
 }
 
 export function buildStopSuccessMessage(deletedSessions: number): string {

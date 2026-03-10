@@ -1,7 +1,10 @@
 import { Markup } from "telegraf";
+import { AddFlowDayChoice } from "../utils/time";
 
 export const CHECKIN_LABEL = "🟢 Check-in";
 export const CHECKOUT_LABEL = "🔴 Check-out";
+export const STOP_CONFIRM_YES_CALLBACK = "stop_yes";
+export const STOP_CONFIRM_NO_CALLBACK = "stop_no";
 
 export function buildMainKeyboard() {
   return Markup.keyboard([[CHECKIN_LABEL, CHECKOUT_LABEL]])
@@ -10,3 +13,25 @@ export function buildMainKeyboard() {
     .persistent();
 }
 
+export function buildAddDayKeyboard(choices: AddFlowDayChoice[]) {
+  const dayRows: string[][] = [];
+  const labels = choices.map((item) => item.label);
+
+  for (let index = 0; index < labels.length; index += 2) {
+    dayRows.push(labels.slice(index, index + 2));
+  }
+
+  return Markup.keyboard([[CHECKIN_LABEL, CHECKOUT_LABEL], ...dayRows])
+    .resize(true)
+    .oneTime(false)
+    .persistent();
+}
+
+export function buildStopConfirmInlineKeyboard() {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback("Yes", STOP_CONFIRM_YES_CALLBACK),
+      Markup.button.callback("No", STOP_CONFIRM_NO_CALLBACK)
+    ]
+  ]);
+}

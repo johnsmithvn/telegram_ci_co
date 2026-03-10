@@ -68,6 +68,8 @@ function minutesBetween(start: Date, end: Date): number {
   return Math.max(1, minutes);
 }
 
+const LUNCH_BREAK_MINUTES = 60;
+
 async function setWorkingStateTx(client: PoolClient, userId: string): Promise<void> {
   await client.query(
     `
@@ -196,7 +198,8 @@ export async function checkOut(
     if (!openSession) {
       return null;
     }
-    const durationMinutes = minutesBetween(openSession.startTime, now);
+    const rawMinutes = minutesBetween(openSession.startTime, now);
+    const durationMinutes = Math.max(0, rawMinutes - LUNCH_BREAK_MINUTES);
     const done = await closeSession(openSession.id, now, durationMinutes, "normal", null, client);
     await setIdleStateTx(client, userId);
     return { session: done, workedMinutes: durationMinutes };

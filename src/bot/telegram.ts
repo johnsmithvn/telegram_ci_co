@@ -1,6 +1,12 @@
 import { Telegraf } from "telegraf";
 import { BotContext } from "./context";
-import { buildMainKeyboard, CHECKIN_LABEL, CHECKOUT_LABEL } from "./keyboard";
+import {
+  buildMainKeyboard,
+  CHECKIN_LABEL,
+  CHECKOUT_LABEL,
+  STOP_CONFIRM_NO_CALLBACK,
+  STOP_CONFIRM_YES_CALLBACK
+} from "./keyboard";
 import { attachTrackedUser } from "./middleware";
 import { env } from "../config/env";
 import { handleAddCommand, handleAddFlowMessage } from "../handlers/add";
@@ -14,7 +20,7 @@ import {
   handleWeekCommand
 } from "../handlers/reportCommands";
 import { handleStart } from "../handlers/start";
-import { handleStopCommand } from "../handlers/stop";
+import { handleStopCommand, handleStopConfirmNo, handleStopConfirmYes } from "../handlers/stop";
 import { logger } from "../logger";
 import { buildUnknownTextMessage } from "../services/reportService";
 import { reactivateUserForBot } from "../services/sessionService";
@@ -66,13 +72,19 @@ export function createTelegramBot(botToken: string, timezoneName: string): Teleg
   });
 
   bot.command("stop", async (ctx) => {
-    const text = "text" in ctx.message ? ctx.message.text : "/stop";
-    await handleStopCommand(ctx, text);
+    await handleStopCommand(ctx);
   });
 
   bot.command("stopme", async (ctx) => {
-    const text = "text" in ctx.message ? ctx.message.text : "/stopme";
-    await handleStopCommand(ctx, text);
+    await handleStopCommand(ctx);
+  });
+
+  bot.action(STOP_CONFIRM_YES_CALLBACK, async (ctx) => {
+    await handleStopConfirmYes(ctx);
+  });
+
+  bot.action(STOP_CONFIRM_NO_CALLBACK, async (ctx) => {
+    await handleStopConfirmNo(ctx);
   });
 
   bot.hears(CHECKIN_LABEL, async (ctx) => {
