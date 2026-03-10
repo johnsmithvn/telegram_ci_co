@@ -1,6 +1,6 @@
 import { Telegraf } from "telegraf";
 import { BotContext } from "./context";
-import { CHECKIN_LABEL, CHECKOUT_LABEL } from "./keyboard";
+import { buildMainKeyboard, CHECKIN_LABEL, CHECKOUT_LABEL } from "./keyboard";
 import { attachTrackedUser } from "./middleware";
 import { env } from "../config/env";
 import { handleAddCommand, handleAddFlowMessage } from "../handlers/add";
@@ -16,6 +16,7 @@ import {
 import { handleStart } from "../handlers/start";
 import { handleStopCommand } from "../handlers/stop";
 import { logger } from "../logger";
+import { buildUnknownTextMessage } from "../services/reportService";
 import { reactivateUserForBot } from "../services/sessionService";
 import { parseHoursInput } from "../utils/time";
 
@@ -51,7 +52,8 @@ export function createTelegramBot(botToken: string, timezoneName: string): Teleg
   });
 
   bot.command("week", async (ctx) => {
-    await handleWeekCommand(ctx, timezoneName);
+    const text = "text" in ctx.message ? ctx.message.text : "/week";
+    await handleWeekCommand(ctx, text, timezoneName);
   });
 
   bot.command("month", async (ctx) => {
@@ -96,6 +98,7 @@ export function createTelegramBot(botToken: string, timezoneName: string): Teleg
 
     const hours = parseHoursInput(text);
     if (hours === null) {
+      await ctx.reply(buildUnknownTextMessage(), { ...buildMainKeyboard() });
       return;
     }
 

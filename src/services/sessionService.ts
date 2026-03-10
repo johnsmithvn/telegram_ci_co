@@ -47,6 +47,8 @@ export interface WeekDayItem {
 }
 
 export interface WeeklyReportData {
+  startDate: string;
+  endDate: string;
   days: WeekDayItem[];
   workedMinutes: number;
   targetMinutes: number;
@@ -352,6 +354,8 @@ export async function getWeeklyReportData(
 
   const workedMinutes = days.reduce((sum, item) => sum + item.totalMinutes, 0);
   return {
+    startDate,
+    endDate,
     days,
     workedMinutes,
     targetMinutes: WEEKLY_TARGET_MINUTES,

@@ -1,3 +1,4 @@
+import dayjs from "dayjs";
 import { buildMainKeyboard } from "../bot/keyboard";
 import { BotContext } from "../bot/context";
 import {
@@ -6,6 +7,7 @@ import {
   buildResetDeniedMessage,
   buildResetSuccessMessage,
   buildTodayReportMessage,
+  buildWeekInvalidDateMessage,
   buildWeekReportMessage
 } from "../services/reportService";
 import {
@@ -14,6 +16,7 @@ import {
   getTodayWorkedMinutes,
   getWeeklyReportData
 } from "../services/sessionService";
+import { parseDateInput } from "../utils/time";
 
 export async function handleTodayCommand(ctx: BotContext, timezoneName: string): Promise<void> {
   const user = ctx.state.trackedUser;
@@ -25,19 +28,37 @@ export async function handleTodayCommand(ctx: BotContext, timezoneName: string):
   await ctx.reply(buildTodayReportMessage(todayMinutes), { ...buildMainKeyboard() });
 }
 
-export async function handleWeekCommand(ctx: BotContext, timezoneName: string): Promise<void> {
+export async function handleWeekCommand(ctx: BotContext, text: string, timezoneName: string): Promise<void> {
   const user = ctx.state.trackedUser;
   if (!user) {
     return;
   }
 
-  const week = await getWeeklyReportData(user.id, new Date(), timezoneName);
+  const args = text
+    .trim()
+    .split(/\s+/)
+    .slice(1);
+
+  let referenceDate = new Date();
+  const rawDate = args[0];
+  if (rawDate) {
+    const parsedDate = parseDateInput(rawDate, timezoneName);
+    if (!parsedDate) {
+      await ctx.reply(buildWeekInvalidDateMessage(), { ...buildMainKeyboard() });
+      return;
+    }
+    referenceDate = dayjs.tz(`${parsedDate} 12:00`, timezoneName).toDate();
+  }
+
+  const week = await getWeeklyReportData(user.id, referenceDate, timezoneName);
   await ctx.reply(
     buildWeekReportMessage({
       days: week.days,
       workedMinutes: week.workedMinutes,
       targetMinutes: week.targetMinutes,
-      remainingMinutes: week.remainingMinutes
+      remainingMinutes: week.remainingMinutes,
+      weekStartDate: week.startDate,
+      weekEndDate: week.endDate
     }),
     { ...buildMainKeyboard() }
   );

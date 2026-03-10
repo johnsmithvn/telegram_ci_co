@@ -86,7 +86,7 @@ export function buildManualHoursClosedMessage(hours: number): string {
 }
 
 export function buildManualPastDayAddedMessage(workDate: string, hours: number): string {
-  return `Đã ghi nhận ${hours} tiếng cho ngày ${workDate}.`;
+  return `Đã ghi nhận ${hours} tiếng cho ngày ${workDate}. Dùng \`/week ${workDate}\` để xem đúng tuần.`;
 }
 
 export function buildAddAskDateMessage(): string {
@@ -101,12 +101,20 @@ export function buildInvalidDateMessage(): string {
   return "Mình chưa hiểu ngày này. Dùng `DD-MM` hoặc `YYYY-MM-DD` nhé.";
 }
 
+export function buildWeekInvalidDateMessage(): string {
+  return "Ngay khong hop le. Dung `/week` hoac `/week YYYY-MM-DD`.";
+}
+
 export function buildInvalidHoursMessage(): string {
   return "Giờ chưa hợp lệ. Nhập số từ 0 đến 24, ví dụ `8` hoặc `8.5`.";
 }
 
 export function buildManualNoPendingMessage(): string {
   return "Hiện không có phiên mở nào để nhập giờ thủ công.";
+}
+
+export function buildUnknownTextMessage(): string {
+  return "Minh chua hieu tin nhan nay. Bam nut Check-in/Check-out hoac go `/help`.";
 }
 
 export function buildHelpMessage(): string {
@@ -116,7 +124,7 @@ export function buildHelpMessage(): string {
     "🔴 Check-out",
     "",
     "Bao cao nhanh:",
-    "`/today` | `/week` | `/month`",
+    "`/today` | `/week` | `/week YYYY-MM-DD` | `/month`",
     "",
     "Lenh them gio thu cong:",
     "`/add` (nhap tung buoc) hoac `/add YYYY-MM-DD 8.5`",
@@ -142,6 +150,8 @@ export function buildWeekReportMessage(input: {
   workedMinutes: number;
   targetMinutes: number;
   remainingMinutes: number;
+  weekStartDate?: string;
+  weekEndDate?: string;
 }): string {
   const progressBar = buildProgressBar(input.workedMinutes, input.targetMinutes);
   const dayLines = input.days.map((item) => `${item.label}: ${formatMinutes(item.totalMinutes)}`);
@@ -149,9 +159,13 @@ export function buildWeekReportMessage(input: {
     input.remainingMinutes > 0
       ? `Con thieu: ${formatMinutes(input.remainingMinutes)}`
       : `Da vuot: ${formatMinutes(Math.abs(input.remainingMinutes))}`;
+  const title =
+    input.weekStartDate && input.weekEndDate
+      ? `Weekly Report (${input.weekStartDate} -> ${input.weekEndDate})`
+      : "Weekly Report";
 
   return [
-    "Weekly Report",
+    title,
     "",
     ...dayLines,
     "",
