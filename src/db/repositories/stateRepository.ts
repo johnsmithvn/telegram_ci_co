@@ -4,25 +4,35 @@ import { AddFlowStep, UserState, UserStatus } from "../../types/domain";
 interface StateRow {
   user_id: string;
   status: UserStatus;
-  last_kpi_warning_week_start: string | null;
-  last_forgot_checkout_prompt_date: string | null;
+  last_kpi_warning_week_start: string | Date | null;
+  last_forgot_checkout_prompt_date: string | Date | null;
   manual_entry_pending_session_id: string | null;
-  manual_entry_pending_date: string | null;
+  manual_entry_pending_date: string | Date | null;
   add_flow_step: AddFlowStep;
-  add_flow_date: string | null;
+  add_flow_date: string | Date | null;
   updated_at: Date;
+}
+
+function normalizeDateOnly(value: string | Date | null): string | null {
+  if (!value) {
+    return null;
+  }
+  if (typeof value === "string") {
+    return value;
+  }
+  return value.toISOString().slice(0, 10);
 }
 
 function mapState(row: StateRow): UserState {
   return {
     userId: row.user_id,
     status: row.status,
-    lastKpiWarningWeekStart: row.last_kpi_warning_week_start,
-    lastForgotCheckoutPromptDate: row.last_forgot_checkout_prompt_date,
+    lastKpiWarningWeekStart: normalizeDateOnly(row.last_kpi_warning_week_start),
+    lastForgotCheckoutPromptDate: normalizeDateOnly(row.last_forgot_checkout_prompt_date),
     manualEntryPendingSessionId: row.manual_entry_pending_session_id,
-    manualEntryPendingDate: row.manual_entry_pending_date,
+    manualEntryPendingDate: normalizeDateOnly(row.manual_entry_pending_date),
     addFlowStep: row.add_flow_step,
-    addFlowDate: row.add_flow_date,
+    addFlowDate: normalizeDateOnly(row.add_flow_date),
     updatedAt: row.updated_at
   };
 }

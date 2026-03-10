@@ -1,6 +1,9 @@
-import { Pool, PoolClient, QueryResult, QueryResultRow } from "pg";
+import { Pool, PoolClient, QueryResult, QueryResultRow, types } from "pg";
 import { env } from "../config/env";
 import { logger } from "../logger";
+
+// Keep DATE columns as raw YYYY-MM-DD strings to avoid timezone shifts.
+types.setTypeParser(1082, (value) => value);
 
 export const pool = new Pool({
   connectionString: env.DATABASE_URL,
@@ -37,4 +40,3 @@ export async function withTransaction<T>(fn: (client: PoolClient) => Promise<T>)
     client.release();
   }
 }
-

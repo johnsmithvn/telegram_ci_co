@@ -10,7 +10,7 @@ interface SessionRow {
   start_time: Date;
   end_time: Date | null;
   duration_minutes: number | null;
-  work_date: string;
+  work_date: string | Date;
   source: WorkSessionSource;
   status: "OPEN" | "CLOSED";
   created_at: Date;
@@ -33,6 +33,13 @@ interface WeeklyTotalInMonthRow {
   total: string;
 }
 
+function normalizeDateOnly(value: string | Date): string {
+  if (typeof value === "string") {
+    return value;
+  }
+  return value.toISOString().slice(0, 10);
+}
+
 function mapSession(row: SessionRow): WorkSession {
   return {
     id: row.id,
@@ -40,7 +47,7 @@ function mapSession(row: SessionRow): WorkSession {
     startTime: row.start_time,
     endTime: row.end_time,
     durationMinutes: row.duration_minutes,
-    workDate: row.work_date,
+    workDate: normalizeDateOnly(row.work_date),
     source: row.source,
     status: row.status,
     createdAt: row.created_at,
