@@ -262,7 +262,9 @@ export async function getWeeklySummary(userId: string, now: Date, timezoneName: 
 
 export async function getTodayWorkedMinutes(userId: string, now: Date, timezoneName: string): Promise<number> {
   const workDate = getLocalDateString(now, timezoneName);
-  return getWorkedMinutesByDate(userId, workDate);
+  const closedMinutes = await getWorkedMinutesByDate(userId, workDate);
+  const activeMinutes = await getActiveSessionMinutes(userId, now);
+  return closedMinutes + activeMinutes;
 }
 
 export async function getUserState(userId: string): Promise<UserState> {
@@ -379,14 +381,21 @@ export async function getWeeklyReportData(
   const totals = await getDailyTotalsInDateRange(userId, startDate, endDate);
   const totalsByDate = new Map(totals.map((item) => [item.workDate, item.totalMinutes]));
 
+  const activeMinutes = await getActiveSessionMinutes(userId, now);
+  const todayDate = getLocalDateString(now, timezoneName);
+
   const days: WeekDayItem[] = [];
   for (let i = 0; i < 7; i += 1) {
     const d = start.add(i, "day");
     const date = d.format("YYYY-MM-DD");
+    let totalMinutes = totalsByDate.get(date) ?? 0;
+    if (date === todayDate && activeMinutes > 0) {
+      totalMinutes += activeMinutes;
+    }
     days.push({
       date,
       label: d.format("ddd"),
-      totalMinutes: totalsByDate.get(date) ?? 0
+      totalMinutes
     });
   }
 

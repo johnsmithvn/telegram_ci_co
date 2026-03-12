@@ -5,6 +5,7 @@ import { logger } from "../logger";
 import { buildKpiWarningMessage } from "../services/reportService";
 import {
   getAllTrackedUsers,
+  getActiveSessionMinutes,
   markKpiWarningSent,
   safeUserSummary,
   shouldSendKpiWarning
@@ -25,7 +26,8 @@ export function startKpiScheduler(bot: Telegraf<BotContext>, timezoneName: strin
           }
 
           const summary = await safeUserSummary(user.id, now, timezoneName);
-          await bot.telegram.sendMessage(Number(user.chatId), buildKpiWarningMessage(summary.workedMinutes));
+          const activeMinutes = await getActiveSessionMinutes(user.id, now);
+          await bot.telegram.sendMessage(Number(user.chatId), buildKpiWarningMessage(summary.workedMinutes + activeMinutes));
           await markKpiWarningSent(user.id, now, timezoneName);
         }
       } catch (error) {
