@@ -2,10 +2,11 @@ import cron, { ScheduledTask } from "node-cron";
 import { Telegraf } from "telegraf";
 import { BotContext } from "../bot/context";
 import { logger } from "../logger";
-import { buildTargetMetMessage } from "../services/reportService";
+import { buildCheckOutMessage, buildTargetMetMessage } from "../services/reportService";
 import {
+  checkOut,
   getAllTrackedUsers,
-  getActiveSessionMinutes,
+  getTodayWorkedMinutes,
   getWeeklySummary,
   markTargetMetSent,
   shouldSendTargetMetNotification
@@ -25,11 +26,26 @@ export function startTargetMetScheduler(bot: Telegraf<BotContext>, timezoneName:
             continue;
           }
 
-          const summary = await getWeeklySummary(user.id, now, timezoneName);
-          const activeMinutes = await getActiveSessionMinutes(user.id, now);
-          const totalWorked = summary.workedMinutes + activeMinutes;
+          // Auto checkout
+          const checkoutResult = await checkOut(user.id, now);
+          if (checkoutResult) {
+            const [summary, todayWorkedMinutes] = await Promise.all([
+              getWeeklySummary(user.id, now, timezoneName),
+              getTodayWorkedMinutes(user.id, now, timezoneName)
+            ]);
 
-          await bot.telegram.sendMessage(Number(user.chatId), buildTargetMetMessage(totalWorked));
+            const targetMsg = buildTargetMetMessage(summary.workedMinutes);
+            const checkoutMsg = buildCheckOutMessage({
+              checkoutTime: now,
+              sessionMinutes: checkoutResult.workedMinutes,
+              todayWorkedMinutes,
+              summary,
+              timezoneName
+            });
+
+            await bot.telegram.sendMessage(Number(user.chatId), `${targetMsg}\n\n${checkoutMsg}`);
+          }
+
           await markTargetMetSent(user.id, now, timezoneName);
         }
       } catch (error) {
