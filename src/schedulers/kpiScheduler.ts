@@ -12,7 +12,7 @@ import {
 
 export function startKpiScheduler(bot: Telegraf<BotContext>, timezoneName: string): ScheduledTask {
   return cron.schedule(
-    "*/5 * * * *",
+    "*/5 * * * 1-6",
     async () => {
       try {
         const now = new Date();

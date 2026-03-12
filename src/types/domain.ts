@@ -30,6 +30,7 @@ export interface UserState {
   status: UserStatus;
   lastKpiWarningWeekStart: string | null;
   lastForgotCheckoutPromptDate: string | null;
+  lastTargetMetWeekStart: string | null;
   manualEntryPendingSessionId: string | null;
   manualEntryPendingDate: string | null;
   addFlowStep: AddFlowStep;

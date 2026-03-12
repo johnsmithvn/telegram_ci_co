@@ -74,6 +74,14 @@ export function buildKpiWarningMessage(workedMinutes: number): string {
   ].join("\n");
 }
 
+export function buildTargetMetMessage(workedMinutes: number): string {
+  return [
+    "🎉 Chúc mừng! Đã đủ 44 tiếng rồi!",
+    `Tổng tuần này: ${formatMinutes(workedMinutes)}.`,
+    "Tắt máy, về nhà, nghỉ ngơi thôi nào!"
+  ].join("\n");
+}
+
 export function buildForgotCheckoutPrompt(): string {
   return [
     "Ê, quên check-out hay đang OT xuyên đêm đấy?",

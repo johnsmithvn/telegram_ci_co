@@ -16,7 +16,7 @@ export function startForgotCheckoutScheduler(
   timezoneName: string
 ): ScheduledTask {
   return cron.schedule(
-    "59 23 * * *",
+    "59 23 * * 1-6",
     async () => {
       try {
         const now = new Date();

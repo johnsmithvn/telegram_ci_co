@@ -6,6 +6,7 @@ interface StateRow {
   status: UserStatus;
   last_kpi_warning_week_start: string | Date | null;
   last_forgot_checkout_prompt_date: string | Date | null;
+  last_target_met_week_start: string | Date | null;
   manual_entry_pending_session_id: string | null;
   manual_entry_pending_date: string | Date | null;
   add_flow_step: AddFlowStep;
@@ -29,6 +30,7 @@ function mapState(row: StateRow): UserState {
     status: row.status,
     lastKpiWarningWeekStart: normalizeDateOnly(row.last_kpi_warning_week_start),
     lastForgotCheckoutPromptDate: normalizeDateOnly(row.last_forgot_checkout_prompt_date),
+    lastTargetMetWeekStart: normalizeDateOnly(row.last_target_met_week_start),
     manualEntryPendingSessionId: row.manual_entry_pending_session_id,
     manualEntryPendingDate: normalizeDateOnly(row.manual_entry_pending_date),
     addFlowStep: row.add_flow_step,
@@ -61,6 +63,7 @@ export async function getState(userId: string): Promise<UserState> {
   const result = await query<StateRow>(
     `
       SELECT user_id, status, last_kpi_warning_week_start, last_forgot_checkout_prompt_date,
+             last_target_met_week_start,
              manual_entry_pending_session_id, manual_entry_pending_date, add_flow_step, add_flow_date, updated_at
       FROM user_state
       WHERE user_id = $1
@@ -118,6 +121,18 @@ export async function setKpiWarningWeek(userId: string, weekStartDate: string): 
     `
       UPDATE user_state
       SET last_kpi_warning_week_start = $2
+      WHERE user_id = $1
+    `,
+    [userId, weekStartDate]
+  );
+}
+
+export async function setTargetMetWeek(userId: string, weekStartDate: string): Promise<void> {
+  await ensureState(userId);
+  await query(
+    `
+      UPDATE user_state
+      SET last_target_met_week_start = $2
       WHERE user_id = $1
     `,
     [userId, weekStartDate]

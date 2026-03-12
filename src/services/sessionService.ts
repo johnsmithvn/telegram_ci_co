@@ -13,6 +13,7 @@ import {
   listOpenSessionsWithUsers,
   truncateAllTrackingData
 } from "../db/repositories/sessionRepository";
+import { setTargetMetWeek } from "../db/repositories/stateRepository";
 import {
   getState,
   markForgotCheckoutPrompt,
@@ -20,6 +21,7 @@ import {
   setKpiWarningWeek,
   setPendingManualEntry
 } from "../db/repositories/stateRepository";
+// setTargetMetWeek imported above to avoid circular
 import { getAllUsers, reactivateUser, upsertUser } from "../db/repositories/userRepository";
 import { withTransaction } from "../db/postgres";
 import { logger } from "../logger";
@@ -308,7 +310,38 @@ export async function shouldSendKpiWarning(userId: string, now: Date, timezoneNa
   }
 
   const summary = await getWeeklySummary(userId, now, timezoneName);
-  return summary.workedMinutes >= KPI_WARNING_THRESHOLD_MINUTES;
+  const activeMinutes = await getActiveSessionMinutes(userId, now);
+  return (summary.workedMinutes + activeMinutes) >= KPI_WARNING_THRESHOLD_MINUTES;
+}
+
+export async function shouldSendTargetMetNotification(userId: string, now: Date, timezoneName: string): Promise<boolean> {
+  const state = await getState(userId);
+  if (state.status !== "working") {
+    return false;
+  }
+
+  const weekStart = getWeekStartDateString(now, timezoneName);
+  if (state.lastTargetMetWeekStart === weekStart) {
+    return false;
+  }
+
+  const summary = await getWeeklySummary(userId, now, timezoneName);
+  const activeMinutes = await getActiveSessionMinutes(userId, now);
+  return (summary.workedMinutes + activeMinutes) >= WEEKLY_TARGET_MINUTES;
+}
+
+export async function markTargetMetSent(userId: string, now: Date, timezoneName: string): Promise<void> {
+  const weekStart = getWeekStartDateString(now, timezoneName);
+  await setTargetMetWeek(userId, weekStart);
+}
+
+export async function getActiveSessionMinutes(userId: string, now: Date): Promise<number> {
+  const openSession = await findOpenSession(userId);
+  if (!openSession) {
+    return 0;
+  }
+  const rawMinutes = minutesBetween(openSession.startTime, now);
+  return Math.max(0, rawMinutes - LUNCH_BREAK_MINUTES);
 }
 
 export async function getBurnDown(userId: string, now: Date, timezoneName: string): Promise<{
@@ -319,11 +352,13 @@ export async function getBurnDown(userId: string, now: Date, timezoneName: strin
   requiredMinutesPerDay: number;
 }> {
   const summary = await getWeeklySummary(userId, now, timezoneName);
+  const activeMinutes = await getActiveSessionMinutes(userId, now);
+  const totalWorked = summary.workedMinutes + activeMinutes;
   const daysLeft = getWeekdaysLeftForBurndown(now, timezoneName);
-  const remainingMinutes = Math.max(0, summary.remainingMinutes);
+  const remainingMinutes = Math.max(0, summary.targetMinutes - totalWorked);
   const requiredMinutesPerDay = daysLeft > 0 ? Math.ceil(remainingMinutes / daysLeft) : remainingMinutes;
   return {
-    workedMinutes: summary.workedMinutes,
+    workedMinutes: totalWorked,
     targetMinutes: summary.targetMinutes,
     remainingMinutes,
     daysLeft,

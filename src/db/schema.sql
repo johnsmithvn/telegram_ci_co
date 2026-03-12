@@ -65,12 +65,16 @@ CREATE TABLE IF NOT EXISTS user_state (
   status user_presence_status NOT NULL DEFAULT 'idle',
   last_kpi_warning_week_start DATE,
   last_forgot_checkout_prompt_date DATE,
+  last_target_met_week_start DATE,
   manual_entry_pending_session_id UUID REFERENCES work_sessions(id) ON DELETE SET NULL,
   manual_entry_pending_date DATE,
   add_flow_step add_flow_step NOT NULL DEFAULT 'NONE',
   add_flow_date DATE,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE user_state
+  ADD COLUMN IF NOT EXISTS last_target_met_week_start DATE;
 
 CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS TRIGGER AS $$

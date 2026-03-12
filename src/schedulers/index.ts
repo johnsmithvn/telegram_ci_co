@@ -5,6 +5,7 @@ import { startForgotCheckoutScheduler } from "./forgotCheckoutScheduler";
 import { startKeepAwakeScheduler } from "./keepAwakeScheduler";
 import { startKpiScheduler } from "./kpiScheduler";
 import { startMonthlySummaryScheduler } from "./monthlySummaryScheduler";
+import { startTargetMetScheduler } from "./targetMetScheduler";
 import { startWeeklySummaryScheduler } from "./weeklySummaryScheduler";
 
 export function startSchedulers(
@@ -15,6 +16,7 @@ export function startSchedulers(
   startBurnDownScheduler(bot, timezoneName);
   startForgotCheckoutScheduler(bot, timezoneName);
   startKpiScheduler(bot, timezoneName);
+  startTargetMetScheduler(bot, timezoneName);
   startWeeklySummaryScheduler(bot, timezoneName);
   startMonthlySummaryScheduler(bot, timezoneName);
   if (keepAwakeUrl) {

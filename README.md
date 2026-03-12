@@ -18,8 +18,11 @@ Telegram bot time-tracking cho check-in/check-out, theo KPI 44h/tuan, co burn-do
 - 1 user chi co toi da 1 session `OPEN` (partial unique index trong DB).
 - Check-out tinh thoi luong session, tong hom nay, tong tuan, con thieu KPI.
 - Burn-down report luc `17:30` (Thu 2 -> Thu 6) + progress bar.
-- KPI warning moi 5 phut khi gan moc `43h50`.
-- Nhac quen checkout luc `23:59`.
+  - **Tinh luon session dang mo**: neu dang check-in ma chua check-out, thoi gian tu luc check-in den hien tai se duoc cong vao bao cao.
+- KPI warning moi 5 phut khi gan moc `43h50` (Tu Thu 2 -> Thu 7, khong gui Chu Nhat).
+  - Tinh ca thoi gian session dang mo.
+- **Target-met notification**: Khi dang check-in va tong gio tuan (bao gom session dang mo) dat du 44h, bot se tu dong gui thong bao chuc mung. Moi tuan chi gui 1 lan. Chay moi 5 phut (Thu 2 -> Thu 7).
+- Nhac quen checkout luc `23:59` (Thu 2 -> Thu 7, khong gui Chu Nhat).
 - Manual hours:
   - nhap so gio truc tiep (vi du `8`, `8.5`) de dong session mo.
   - `/add` flow nhap ngay + so gio.
@@ -83,12 +86,15 @@ Bang chinh:
 
 ## Scheduler Cron
 
-- Burn-down: `30 17 * * 1-5`
-- Forgot checkout: `59 23 * * *`
-- KPI warning: `*/5 * * * *`
-- Weekly summary: `0 21 * * 0`
-- Monthly summary: `5 21 * * *` (chi gui vao ngay cuoi thang)
-- Keep awake (optional): `*/14 * * * *`
+| Scheduler | Cron | Ngay chay |
+|---|---|---|
+| Burn-down | `30 17 * * 1-5` | Thu 2 -> Thu 6 |
+| Forgot checkout | `59 23 * * 1-6` | Thu 2 -> Thu 7 |
+| KPI warning | `*/5 * * * 1-6` | Thu 2 -> Thu 7 |
+| Target-met | `*/5 * * * 1-6` | Thu 2 -> Thu 7 |
+| Weekly summary | `0 21 * * 0` | Chu Nhat |
+| Monthly summary | `5 21 * * *` | Ngay cuoi thang |
+| Keep awake | `*/14 * * * *` | Moi ngay (optional) |
 
 ## Deploy Fly.io
 
@@ -99,6 +105,16 @@ fly deploy
 ```
 
 Health check: `GET /health`
+
+## Changelog
+
+### 2026-03-12
+
+- **Burn-down 17:30 tinh session dang mo**: Bao cao burn-down gio tinh luon thoi gian tu luc check-in den hien tai (tru 1h nghi trua) cho session chua check-out, thay vi chi tinh cac session da dong.
+- **Target-met notification**: Them scheduler moi chay moi 5 phut (Thu 2 - Thu 7). Khi user dang check-in va tong gio tuan (da dong + dang mo) >= 44h, bot gui thong bao "Da du 44 tieng". Moi tuan chi gui 1 lan.
+- **Khong gui thong bao ngay Chu Nhat**: Cac scheduler forgot-checkout va KPI warning gio chi chay Thu 2 - Thu 7 (cron `1-6`), khong con chay ngay Chu Nhat.
+- **KPI warning tinh session dang mo**: Canh bao gan 43h50 gio cung tinh ca thoi gian cua session dang mo.
+- DB: Them cot `last_target_met_week_start` vao bang `user_state`.
 
 ## Deploy Render (Free Tier) + Keep Awake
 
