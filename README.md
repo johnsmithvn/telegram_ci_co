@@ -1,4 +1,7 @@
 # Telegram Work Bot (44h/week KPI)
+backend : supabase
+fe: dashboard.render.com
+
 
 Telegram bot time-tracking cho check-in/check-out, theo KPI 44h/tuan, co burn-down, report theo ngay/tuan/thang, nhac quen checkout, va nhap gio thu cong.
 
