@@ -32,8 +32,9 @@ export function buildCheckOutMessage(input: {
 
   return [
     "Xong phim!",
+    `Đã ghi nhận checkout lúc ${formatClock(input.checkoutTime, input.timezoneName)}.`,
     "",
-    `Ca nay ban lam duoc ${formatMinutes(input.sessionMinutes)} (da tru 1h nghi trua).`,
+    `Ca này làm được ${formatMinutes(input.sessionMinutes)} (đã trừ 1h nghỉ trưa).`,
     "",
     `📊 Tổng kết ngày hôm nay (${formatDateShort(input.checkoutTime, input.timezoneName)}):`,
     `- Đã cày được: ${formatMinutes(input.todayWorkedMinutes)} / 44h.`,
