@@ -83,6 +83,19 @@ export async function getAllUsers(): Promise<User[]> {
   return result.rows.map(mapUser);
 }
 
+export async function findUserByTelegramId(telegramId: number): Promise<User | null> {
+  const result = await query<UserRow>(
+    `
+      SELECT id, telegram_id, chat_id, name, is_active, created_at
+      FROM users
+      WHERE telegram_id = $1
+      LIMIT 1
+    `,
+    [telegramId]
+  );
+  return result.rows[0] ? mapUser(result.rows[0]) : null;
+}
+
 export async function getUserById(userId: string): Promise<User | null> {
   const result = await query<UserRow>(
     `

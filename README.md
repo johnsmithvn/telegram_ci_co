@@ -109,7 +109,58 @@ fly deploy
 
 Health check: `GET /health`
 
+## REST API (Auto Check-in via MacroDroid)
+
+Bot co REST API de trigger check-in/check-out tu ben ngoai (vi du: MacroDroid tren Android).
+
+### Setup
+
+1. Set `API_SECRET` trong env (bat buoc):
+   ```env
+   API_SECRET=your-random-secret-key
+   ```
+
+2. Cai **MacroDroid** (free, nhe nhat, ~15MB, khong ton pin):
+   - Play Store: [MacroDroid](https://play.google.com/store/apps/details?id=com.arlosoft.macrodroid)
+
+3. Tao Macro trong MacroDroid:
+   - **Trigger**: Application Launched → chon app cham cong cong ty
+   - **Action**: HTTP Request
+     - Method: `POST`
+     - URL: `https://your-bot-url/api/checkin`
+     - Header: `x-api-key: YOUR_API_SECRET`
+     - Body: `{"telegram_id": YOUR_TELEGRAM_ID}`
+     - Content-Type: `application/json`
+
+4. (Optional) Tao them macro check-out:
+   - **Trigger**: Application Closed → chon app cham cong
+   - **Action**: tuong tu nhung URL la `/api/checkout`
+
+### API Endpoints
+
+| Method | Endpoint | Mo ta |
+|---|---|---|
+| POST | `/api/checkin` | Check-in, gui xac nhan qua Telegram |
+| POST | `/api/checkout` | Check-out, gui bao cao qua Telegram |
+| POST | `/api/status` | Kiem tra trang thai (working/idle) |
+
+Headers: `x-api-key: <API_SECRET>`, `Content-Type: application/json`
+Body: `{ "telegram_id": 123456789 }`
+
+### Test bang curl
+
+```bash
+curl -X POST https://your-bot/api/checkin \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: YOUR_SECRET" \
+  -d '{"telegram_id": YOUR_TELEGRAM_ID}'
+```
+
 ## Changelog
+
+### 2026-03-25
+
+- **REST API auto check-in/check-out**: Them endpoints `POST /api/checkin`, `POST /api/checkout`, `POST /api/status` cho phep trigger tu ben ngoai (MacroDroid). Xac thuc bang `API_SECRET` qua header `x-api-key`. Bot gui xac nhan qua Telegram voi prefix 🤖.
 
 ### 2026-03-12
 

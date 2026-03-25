@@ -1,5 +1,6 @@
 import express from "express";
 import { createTelegramBot } from "./bot/telegram";
+import { createApiRouter } from "./api/apiRoutes";
 import { env } from "./config/env";
 import { pool } from "./db/postgres";
 import { logger } from "./logger";
@@ -10,6 +11,7 @@ async function bootstrap(): Promise<void> {
   const app = express();
 
   app.use(express.json({ limit: "1mb" }));
+  app.use(createApiRouter(bot, { API_SECRET: env.API_SECRET, TIMEZONE: env.TIMEZONE }));
   app.get("/health", (_req, res) => {
     res.status(200).json({
       ok: true,

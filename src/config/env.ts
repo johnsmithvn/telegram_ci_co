@@ -25,6 +25,7 @@ const envSchema = z.object({
             .filter(Boolean)
         : []
     ),
+  API_SECRET: z.string().min(1).optional(),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development")
 });
