@@ -286,6 +286,26 @@ export async function getWorkedDayCountInRange(
   return Number(result.rows[0]?.total ?? 0);
 }
 
+export async function updateSessionEndTime(
+  sessionId: string,
+  endTime: Date,
+  durationMinutes: number,
+  client?: Queryable
+): Promise<WorkSession> {
+  const result = await execute<SessionRow>(
+    `
+      UPDATE work_sessions
+      SET end_time = $2,
+          duration_minutes = $3
+      WHERE id = $1
+      RETURNING id, user_id, start_time, end_time, duration_minutes, work_date, source, status, created_at, updated_at
+    `,
+    [sessionId, endTime, durationMinutes],
+    client
+  );
+  return mapSession(firstRowOrThrow(result.rows, "updateSessionEndTime"));
+}
+
 export async function truncateAllTrackingData(): Promise<void> {
   await query(
     `

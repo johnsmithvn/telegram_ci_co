@@ -2,16 +2,14 @@ import { Telegraf } from "telegraf";
 import { BotContext } from "./context";
 import {
   buildMainKeyboard,
-  CHECKIN_LABEL,
-  CHECKOUT_LABEL,
+  ATTENDANCE_LABEL,
   STOP_CONFIRM_NO_CALLBACK,
   STOP_CONFIRM_YES_CALLBACK
 } from "./keyboard";
 import { attachTrackedUser } from "./middleware";
 import { env } from "../config/env";
 import { handleAddCommand, handleAddFlowMessage } from "../handlers/add";
-import { handleCheckIn } from "../handlers/checkin";
-import { handleCheckOut } from "../handlers/checkout";
+import { handleAttendance } from "../handlers/attendance";
 import { handleManualHoursForOpenSession, replyNoManualTarget } from "../handlers/manualHours";
 import {
   handleMonthCommand,
@@ -87,12 +85,8 @@ export function createTelegramBot(botToken: string, timezoneName: string): Teleg
     await handleStopConfirmNo(ctx);
   });
 
-  bot.hears(CHECKIN_LABEL, async (ctx) => {
-    await handleCheckIn(ctx, timezoneName);
-  });
-
-  bot.hears(CHECKOUT_LABEL, async (ctx) => {
-    await handleCheckOut(ctx, timezoneName);
+  bot.hears(ATTENDANCE_LABEL, async (ctx) => {
+    await handleAttendance(ctx, timezoneName);
   });
 
   bot.on("text", async (ctx) => {

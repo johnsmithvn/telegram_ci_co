@@ -123,14 +123,13 @@ export function buildManualNoPendingMessage(): string {
 }
 
 export function buildUnknownTextMessage(): string {
-  return "Minh chua hieu tin nhan nay. Bam nut Check-in/Check-out hoac go `/help`.";
+  return "Minh chua hieu tin nhan nay. Bam nut Cham cong hoac go `/help`.";
 }
 
 export function buildHelpMessage(): string {
   return [
     "Bạn chỉ cần bấm nút bên dưới:",
-    "🟢 Check-in",
-    "🔴 Check-out",
+    "📋 Chấm công (lần đầu = Check-in, các lần sau = cập nhật Check-out)",
     "",
     "Bao cao nhanh:",
     "`/today` | `/week` | `/week YYYY-MM-DD` | `/month`",

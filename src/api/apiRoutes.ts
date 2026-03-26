@@ -3,7 +3,13 @@ import { Telegraf } from "telegraf";
 import { BotContext } from "../bot/context";
 import { findUserByTelegramId } from "../db/repositories/userRepository";
 import { findOpenSession } from "../db/repositories/sessionRepository";
-import { checkIn, checkOut, getTodayWorkedMinutes, getWeeklySummary } from "../services/sessionService";
+import {
+  recordAttendance,
+  checkIn,
+  checkOut,
+  getTodayWorkedMinutes,
+  getWeeklySummary
+} from "../services/sessionService";
 import {
   buildCheckInSuccessMessage,
   buildAlreadyCheckedInMessage,
@@ -33,6 +39,61 @@ export function createApiRouter(bot: Telegraf<BotContext>, apiEnv: ApiEnv): Rout
     }
 
     next();
+  });
+
+  router.post("/api/attendance", async (req: Request, res: Response) => {
+    try {
+      const telegramId = Number(req.body?.telegram_id);
+      if (!telegramId) {
+        res.status(400).json({ ok: false, error: "telegram_id required" });
+        return;
+      }
+
+      const user = await findUserByTelegramId(telegramId);
+      if (!user || !user.isActive) {
+        res.status(404).json({ ok: false, error: "User not found or inactive" });
+        return;
+      }
+
+      const now = new Date();
+      const result = await recordAttendance(user.id, now, apiEnv.TIMEZONE);
+
+      if (result.type === "checkedIn") {
+        const message = `🤖 Auto chấm công!\n${buildCheckInSuccessMessage(result.session.startTime, apiEnv.TIMEZONE)}`;
+        await bot.telegram.sendMessage(Number(user.chatId), message);
+
+        res.json({
+          ok: true,
+          action: "checkin",
+          start_time: result.session.startTime.toISOString()
+        });
+        return;
+      }
+
+      const [summary, todayWorkedMinutes] = await Promise.all([
+        getWeeklySummary(user.id, now, apiEnv.TIMEZONE),
+        getTodayWorkedMinutes(user.id, now, apiEnv.TIMEZONE)
+      ]);
+
+      const message = `🤖 Auto chấm công!\n${buildCheckOutMessage({
+        checkoutTime: now,
+        sessionMinutes: result.workedMinutes,
+        todayWorkedMinutes,
+        summary,
+        timezoneName: apiEnv.TIMEZONE
+      })}`;
+
+      await bot.telegram.sendMessage(Number(user.chatId), message);
+
+      res.json({
+        ok: true,
+        action: "checkout",
+        worked_minutes: result.workedMinutes
+      });
+    } catch (error) {
+      logger.error({ error }, "API attendance failed");
+      res.status(500).json({ ok: false, error: "Internal server error" });
+    }
   });
 
   router.post("/api/checkin", async (req: Request, res: Response) => {

@@ -1,13 +1,12 @@
 import { Markup } from "telegraf";
 import { AddFlowDayChoice } from "../utils/time";
 
-export const CHECKIN_LABEL = "🟢 Check-in";
-export const CHECKOUT_LABEL = "🔴 Check-out";
+export const ATTENDANCE_LABEL = "📋 Chấm công";
 export const STOP_CONFIRM_YES_CALLBACK = "stop_yes";
 export const STOP_CONFIRM_NO_CALLBACK = "stop_no";
 
 export function buildMainKeyboard() {
-  return Markup.keyboard([[CHECKIN_LABEL, CHECKOUT_LABEL]])
+  return Markup.keyboard([[ATTENDANCE_LABEL]])
     .resize(true)
     .oneTime(false)
     .persistent();
@@ -21,7 +20,7 @@ export function buildAddDayKeyboard(choices: AddFlowDayChoice[]) {
     dayRows.push(labels.slice(index, index + 2));
   }
 
-  return Markup.keyboard([[CHECKIN_LABEL, CHECKOUT_LABEL], ...dayRows])
+  return Markup.keyboard([[ATTENDANCE_LABEL], ...dayRows])
     .resize(true)
     .oneTime(false)
     .persistent();

@@ -11,7 +11,8 @@ import {
   getWorkedMinutesInRange,
   insertClosedSession,
   listOpenSessionsWithUsers,
-  truncateAllTrackingData
+  truncateAllTrackingData,
+  updateSessionEndTime
 } from "../db/repositories/sessionRepository";
 import { setTargetMetWeek } from "../db/repositories/stateRepository";
 import {
@@ -208,6 +209,46 @@ export async function checkOut(
   });
 
   return closed;
+}
+
+export type AttendanceResult =
+  | { type: "checkedIn"; session: WorkSession }
+  | { type: "checkedOut"; session: WorkSession; workedMinutes: number };
+
+export async function recordAttendance(
+  userId: string,
+  now: Date,
+  timezoneName: string
+): Promise<AttendanceResult> {
+  return withTransaction(async (client) => {
+    const existingOpen = await findOpenSession(userId, client);
+
+    if (!existingOpen) {
+      const workDate = getLocalDateString(now, timezoneName);
+      let created: WorkSession;
+      try {
+        created = await createOpenSession(userId, now, workDate, "normal", client);
+      } catch (error) {
+        const dbError = error as { code?: string };
+        if (dbError.code === "23505") {
+          const locked = await findOpenSession(userId, client);
+          if (locked) {
+            return { type: "checkedIn" as const, session: locked };
+          }
+        }
+        throw error;
+      }
+      await setWorkingStateTx(client, userId);
+      return { type: "checkedIn" as const, session: created };
+    }
+
+    const rawMinutes = minutesBetween(existingOpen.startTime, now);
+    const durationMinutes = rawMinutes > LUNCH_BREAK_MINUTES * 4
+      ? Math.max(0, rawMinutes - LUNCH_BREAK_MINUTES)
+      : rawMinutes;
+    const updated = await updateSessionEndTime(existingOpen.id, now, durationMinutes, client);
+    return { type: "checkedOut" as const, session: updated, workedMinutes: durationMinutes };
+  });
 }
 
 export async function closeOpenSessionByManualHours(
