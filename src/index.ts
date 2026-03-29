@@ -18,7 +18,6 @@ async function bootstrap(): Promise<void> {
       now: new Date().toISOString()
     });
   });
-  app.use(createApiRouter(bot, { API_SECRET: env.API_SECRET, TIMEZONE: env.TIMEZONE }));
 
   if (env.WEBHOOK_URL) {
     const webhookPath = "/telegram/webhook";
@@ -29,6 +28,8 @@ async function bootstrap(): Promise<void> {
     await bot.launch({ dropPendingUpdates: true });
     logger.info("Telegram bot started in polling mode");
   }
+
+  app.use(createApiRouter(bot, { API_SECRET: env.API_SECRET, TIMEZONE: env.TIMEZONE }));
 
   startSchedulers(bot, env.TIMEZONE, env.KEEP_AWAKE_URL);
   logger.info("Schedulers started");
