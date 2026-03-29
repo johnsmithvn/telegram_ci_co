@@ -3,10 +3,13 @@ package com.chamcong.auto
 import android.accessibilityservice.AccessibilityService
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
-import android.view.accessibility.AccessibilityNodeInfo
+import android.widget.Toast
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.TimeZone
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -14,12 +17,12 @@ class ChamCongAccessibilityService : AccessibilityService() {
 
     companion object {
         private const val TAG = "ChamCong"
-        private const val TRIGGER_TEXT = "Xác nhận chấm công"
+        private const val COOLDOWN_MS = 5 * 60 * 1000L // 5 minutes
     }
 
     private val executor = Executors.newSingleThreadExecutor()
     private val isSending = AtomicBoolean(false)
-    private var lastTriggeredText: String? = null
+    private var lastTriggerTime = 0L
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -33,7 +36,7 @@ class ChamCongAccessibilityService : AccessibilityService() {
             }
             Log.i(TAG, "Service connected, filtering package: $targetPackage")
         } else {
-            Log.w(TAG, "Service connected, no package filter — listening to ALL apps")
+            Log.w(TAG, "Service connected, no package filter")
         }
     }
 
@@ -48,17 +51,18 @@ class ChamCongAccessibilityService : AccessibilityService() {
         }
 
         val now = System.currentTimeMillis()
-        
-        // Cooldown 5 mins = 300_000 ms. Prevent firing repeatedly while the user is using the app.
-        if (now - lastTriggerTime < 300_000L) {
-            return
-        }
+        if (now - lastTriggerTime < COOLDOWN_MS) return
 
         lastTriggerTime = now
-        
-        Log.i(TAG, "Humax App Opened — calling API")
-        android.widget.Toast.makeText(this, "Auto Chấm Công: Phát hiện mở app, đang gửi...", android.widget.Toast.LENGTH_SHORT).show()
-        callAttendanceApi()
+
+        // Capture the exact timestamp at the moment of detection.
+        // Even if Render takes 50s to cold start, we send THIS time —
+        // so the recorded attendance time is always accurate.
+        val capturedTime = java.util.Date(now)
+
+        Log.i(TAG, "Humax App triggered — calling API with client_time")
+        Toast.makeText(this, "Auto Chấm Công: Đang gửi...", Toast.LENGTH_SHORT).show()
+        callAttendanceApi(capturedTime)
     }
 
     override fun onInterrupt() {
@@ -70,7 +74,7 @@ class ChamCongAccessibilityService : AccessibilityService() {
         super.onDestroy()
     }
 
-    private fun callAttendanceApi() {
+    private fun callAttendanceApi(capturedTime: java.util.Date) {
         if (!isSending.compareAndSet(false, true)) {
             Log.d(TAG, "Already sending, skip duplicate")
             return
@@ -87,6 +91,12 @@ class ChamCongAccessibilityService : AccessibilityService() {
             return
         }
 
+        // Format as ISO-8601 UTC so the backend can parse it correctly
+        val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }
+        val clientTimeIso = isoFormat.format(capturedTime)
+
         executor.execute {
             try {
                 val url = URL("${apiUrl.trimEnd('/')}/api/attendance")
@@ -98,7 +108,8 @@ class ChamCongAccessibilityService : AccessibilityService() {
                 conn.readTimeout = 15_000
                 conn.doOutput = true
 
-                val body = """{"telegram_id":$telegramId}"""
+                // Send client_time so backend records accurate time even on cold start
+                val body = """{"telegram_id":$telegramId,"client_time":"$clientTimeIso"}"""
                 OutputStreamWriter(conn.outputStream, Charsets.UTF_8).use { it.write(body) }
 
                 val code = conn.responseCode

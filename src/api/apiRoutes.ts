@@ -55,7 +55,23 @@ export function createApiRouter(bot: Telegraf<BotContext>, apiEnv: ApiEnv): Rout
         return;
       }
 
-      const now = new Date();
+      // Accept client_time from Android to handle Render cold-start delays.
+      // The client sends the exact moment the Humax popup appeared.
+      // Clamp: must be within ±10 minutes of server time to prevent abuse.
+      const serverNow = new Date();
+      let now = serverNow;
+      const clientTimeStr = req.body?.client_time as string | undefined;
+      if (clientTimeStr) {
+        const clientTime = new Date(clientTimeStr);
+        const diffMs = Math.abs(serverNow.getTime() - clientTime.getTime());
+        if (!isNaN(clientTime.getTime()) && diffMs <= 10 * 60 * 1000) {
+          now = clientTime;
+          logger.info({ clientTime: clientTime.toISOString(), serverNow: serverNow.toISOString(), diffMs }, "Using client_time for attendance");
+        } else {
+          logger.warn({ clientTimeStr, diffMs }, "client_time out of range or invalid, using server time");
+        }
+      }
+
       const result = await recordAttendance(user.id, now, apiEnv.TIMEZONE);
 
       if (result.type === "checkedIn") {
