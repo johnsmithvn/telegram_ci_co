@@ -3,7 +3,7 @@ import { logger } from "../logger";
 
 export function startKeepAwakeScheduler(keepAwakeUrl: string, timezoneName: string): ScheduledTask {
   return cron.schedule(
-    "*/14 * * * *",
+    "*/10 * * * *",
     async () => {
       try {
         const response = await fetch(keepAwakeUrl, {
