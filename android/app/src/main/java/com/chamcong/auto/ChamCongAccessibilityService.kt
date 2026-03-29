@@ -15,12 +15,11 @@ class ChamCongAccessibilityService : AccessibilityService() {
     companion object {
         private const val TAG = "ChamCong"
         private const val TRIGGER_TEXT = "Xác nhận chấm công"
-        private const val COOLDOWN_MS = 10_000L
     }
 
     private val executor = Executors.newSingleThreadExecutor()
     private val isSending = AtomicBoolean(false)
-    private var lastTriggerTime = 0L
+    private var lastTriggeredText: String? = null
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -48,33 +47,18 @@ class ChamCongAccessibilityService : AccessibilityService() {
             return
         }
 
-        // Try rootInActiveWindow first (more reliable for popups/dialogs)
-        val root = rootInActiveWindow
-        if (root != null) {
-            val found = findTextInNode(root, TRIGGER_TEXT)
-            root.recycle()
-            if (found) {
-                triggerAttendance()
-                return
-            }
-        }
+        val root = rootInActiveWindow ?: return
+        val matchedText = findTriggerText(root, TRIGGER_TEXT)
+        root.recycle()
 
-        // Fallback: check event source
-        val source = event.source
-        if (source != null) {
-            val found = findTextInNode(source, TRIGGER_TEXT)
-            source.recycle()
-            if (found) {
-                triggerAttendance()
-                return
-            }
-        }
+        if (matchedText == null) return
 
-        // Fallback: check event text directly
-        val eventText = event.text?.joinToString(" ") ?: ""
-        if (eventText.contains(TRIGGER_TEXT, ignoreCase = true)) {
-            triggerAttendance()
-        }
+        // Same popup still on screen — skip
+        if (matchedText == lastTriggeredText) return
+
+        lastTriggeredText = matchedText
+        Log.i(TAG, "Detected NEW popup: '$matchedText' — calling API")
+        callAttendanceApi()
     }
 
     override fun onInterrupt() {
@@ -86,36 +70,29 @@ class ChamCongAccessibilityService : AccessibilityService() {
         super.onDestroy()
     }
 
-    private fun triggerAttendance() {
-        val now = System.currentTimeMillis()
-        if (now - lastTriggerTime < COOLDOWN_MS) {
-            Log.d(TAG, "Cooldown active, skipping")
-            return
-        }
-        lastTriggerTime = now
-        Log.i(TAG, "Detected: '$TRIGGER_TEXT' — calling API")
-        callAttendanceApi()
-    }
-
-    private fun findTextInNode(node: AccessibilityNodeInfo, target: String): Boolean {
+    /**
+     * Finds the full text of a node containing the trigger.
+     * e.g. "Xác nhận chấm công lúc 21:08" — the timestamp makes each popup unique.
+     */
+    private fun findTriggerText(node: AccessibilityNodeInfo, trigger: String): String? {
         val nodeText = node.text?.toString() ?: ""
-        if (nodeText.contains(target, ignoreCase = true)) {
-            return true
+        if (nodeText.contains(trigger, ignoreCase = true)) {
+            return nodeText
         }
 
         val contentDesc = node.contentDescription?.toString() ?: ""
-        if (contentDesc.contains(target, ignoreCase = true)) {
-            return true
+        if (contentDesc.contains(trigger, ignoreCase = true)) {
+            return contentDesc
         }
 
         for (i in 0 until node.childCount) {
             val child = node.getChild(i) ?: continue
-            val childResult = findTextInNode(child, target)
+            val result = findTriggerText(child, trigger)
             child.recycle()
-            if (childResult) return true
+            if (result != null) return result
         }
 
-        return false
+        return null
     }
 
     private fun callAttendanceApi() {
@@ -142,8 +119,8 @@ class ChamCongAccessibilityService : AccessibilityService() {
                 conn.requestMethod = "POST"
                 conn.setRequestProperty("Content-Type", "application/json")
                 conn.setRequestProperty("x-api-key", apiSecret)
-                conn.connectTimeout = 10_000
-                conn.readTimeout = 10_000
+                conn.connectTimeout = 15_000
+                conn.readTimeout = 15_000
                 conn.doOutput = true
 
                 val body = """{"telegram_id":$telegramId}"""
