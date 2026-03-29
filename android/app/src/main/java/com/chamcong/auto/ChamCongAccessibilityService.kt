@@ -47,16 +47,43 @@ class ChamCongAccessibilityService : AccessibilityService() {
             return
         }
 
-        val root = rootInActiveWindow ?: return
-        val matchedText = findTriggerText(root, TRIGGER_TEXT)
-        root.recycle()
+        var matchedText: String? = null
+
+        val root = rootInActiveWindow
+        if (root != null) {
+            matchedText = findTriggerText(root, TRIGGER_TEXT)
+            root.recycle()
+        }
+
+        if (matchedText == null) {
+            val source = event.source
+            if (source != null) {
+                matchedText = findTriggerText(source, TRIGGER_TEXT)
+                source.recycle()
+            }
+        }
+
+        if (matchedText == null) {
+            val eventText = event.text?.joinToString(" ") ?: ""
+            if (eventText.contains(TRIGGER_TEXT, ignoreCase = true)) {
+                matchedText = eventText
+            }
+        }
 
         if (matchedText == null) return
 
-        // Same popup still on screen — skip
-        if (matchedText == lastTriggeredText) return
+        val now = System.currentTimeMillis()
+        
+        // Anti-spam: if same text AND within 10 seconds -> ignore
+        // This prevents the burst of events for the exact same popup, 
+        // while allowing re-triggers if the user tests again within the same minute.
+        if (matchedText == lastTriggeredText && (now - lastTriggerTime) < 10_000L) {
+            return
+        }
 
         lastTriggeredText = matchedText
+        lastTriggerTime = now
+        
         Log.i(TAG, "Detected NEW popup: '$matchedText' — calling API")
         android.widget.Toast.makeText(this, "Auto Chấm Công: Đang gửi API...", android.widget.Toast.LENGTH_SHORT).show()
         callAttendanceApi()
