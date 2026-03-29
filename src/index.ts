@@ -11,7 +11,6 @@ async function bootstrap(): Promise<void> {
   const app = express();
 
   app.use(express.json({ limit: "1mb" }));
-  app.use(createApiRouter(bot, { API_SECRET: env.API_SECRET, TIMEZONE: env.TIMEZONE }));
   app.get("/health", (_req, res) => {
     res.status(200).json({
       ok: true,
@@ -19,6 +18,7 @@ async function bootstrap(): Promise<void> {
       now: new Date().toISOString()
     });
   });
+  app.use(createApiRouter(bot, { API_SECRET: env.API_SECRET, TIMEZONE: env.TIMEZONE }));
 
   if (env.WEBHOOK_URL) {
     const webhookPath = "/telegram/webhook";
