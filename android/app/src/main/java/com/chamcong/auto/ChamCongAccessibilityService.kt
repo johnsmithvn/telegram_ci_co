@@ -58,6 +58,7 @@ class ChamCongAccessibilityService : AccessibilityService() {
 
         lastTriggeredText = matchedText
         Log.i(TAG, "Detected NEW popup: '$matchedText' — calling API")
+        android.widget.Toast.makeText(this, "Auto Chấm Công: Đang gửi API...", android.widget.Toast.LENGTH_SHORT).show()
         callAttendanceApi()
     }
 
