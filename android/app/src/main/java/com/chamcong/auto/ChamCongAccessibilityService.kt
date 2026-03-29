@@ -47,45 +47,17 @@ class ChamCongAccessibilityService : AccessibilityService() {
             return
         }
 
-        var matchedText: String? = null
-
-        val root = rootInActiveWindow
-        if (root != null) {
-            matchedText = findTriggerText(root, TRIGGER_TEXT)
-            root.recycle()
-        }
-
-        if (matchedText == null) {
-            val source = event.source
-            if (source != null) {
-                matchedText = findTriggerText(source, TRIGGER_TEXT)
-                source.recycle()
-            }
-        }
-
-        if (matchedText == null) {
-            val eventText = event.text?.joinToString(" ") ?: ""
-            if (eventText.contains(TRIGGER_TEXT, ignoreCase = true)) {
-                matchedText = eventText
-            }
-        }
-
-        if (matchedText == null) return
-
         val now = System.currentTimeMillis()
         
-        // Anti-spam: if same text AND within 10 seconds -> ignore
-        // This prevents the burst of events for the exact same popup, 
-        // while allowing re-triggers if the user tests again within the same minute.
-        if (matchedText == lastTriggeredText && (now - lastTriggerTime) < 10_000L) {
+        // Cooldown 5 mins = 300_000 ms. Prevent firing repeatedly while the user is using the app.
+        if (now - lastTriggerTime < 300_000L) {
             return
         }
 
-        lastTriggeredText = matchedText
         lastTriggerTime = now
         
-        Log.i(TAG, "Detected NEW popup: '$matchedText' — calling API")
-        android.widget.Toast.makeText(this, "Auto Chấm Công: Đang gửi API...", android.widget.Toast.LENGTH_SHORT).show()
+        Log.i(TAG, "Humax App Opened — calling API")
+        android.widget.Toast.makeText(this, "Auto Chấm Công: Phát hiện mở app, đang gửi...", android.widget.Toast.LENGTH_SHORT).show()
         callAttendanceApi()
     }
 
@@ -96,31 +68,6 @@ class ChamCongAccessibilityService : AccessibilityService() {
     override fun onDestroy() {
         executor.shutdownNow()
         super.onDestroy()
-    }
-
-    /**
-     * Finds the full text of a node containing the trigger.
-     * e.g. "Xác nhận chấm công lúc 21:08" — the timestamp makes each popup unique.
-     */
-    private fun findTriggerText(node: AccessibilityNodeInfo, trigger: String): String? {
-        val nodeText = node.text?.toString() ?: ""
-        if (nodeText.contains(trigger, ignoreCase = true)) {
-            return nodeText
-        }
-
-        val contentDesc = node.contentDescription?.toString() ?: ""
-        if (contentDesc.contains(trigger, ignoreCase = true)) {
-            return contentDesc
-        }
-
-        for (i in 0 until node.childCount) {
-            val child = node.getChild(i) ?: continue
-            val result = findTriggerText(child, trigger)
-            child.recycle()
-            if (result != null) return result
-        }
-
-        return null
     }
 
     private fun callAttendanceApi() {
