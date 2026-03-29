@@ -1,9 +1,9 @@
 package com.chamcong.auto
 
 import android.accessibilityservice.AccessibilityService
-import android.accessibilityservice.AccessibilityServiceInfo
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityNodeInfo
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
@@ -34,7 +34,7 @@ class ChamCongAccessibilityService : AccessibilityService() {
             }
             Log.i(TAG, "Service connected, filtering package: $targetPackage")
         } else {
-            Log.w(TAG, "Service connected, no package filter set — listening to ALL apps")
+            Log.w(TAG, "Service connected, no package filter — listening to ALL apps")
         }
     }
 
@@ -48,21 +48,33 @@ class ChamCongAccessibilityService : AccessibilityService() {
             return
         }
 
-        val source = event.source ?: return
-        val found = findTextInNode(source, TRIGGER_TEXT)
-        source.recycle()
-
-        if (!found) return
-
-        val now = System.currentTimeMillis()
-        if (now - lastTriggerTime < COOLDOWN_MS) {
-            Log.d(TAG, "Cooldown active, skipping")
-            return
+        // Try rootInActiveWindow first (more reliable for popups/dialogs)
+        val root = rootInActiveWindow
+        if (root != null) {
+            val found = findTextInNode(root, TRIGGER_TEXT)
+            root.recycle()
+            if (found) {
+                triggerAttendance()
+                return
+            }
         }
 
-        lastTriggerTime = now
-        Log.i(TAG, "Detected: '$TRIGGER_TEXT' — calling API")
-        callAttendanceApi()
+        // Fallback: check event source
+        val source = event.source
+        if (source != null) {
+            val found = findTextInNode(source, TRIGGER_TEXT)
+            source.recycle()
+            if (found) {
+                triggerAttendance()
+                return
+            }
+        }
+
+        // Fallback: check event text directly
+        val eventText = event.text?.joinToString(" ") ?: ""
+        if (eventText.contains(TRIGGER_TEXT, ignoreCase = true)) {
+            triggerAttendance()
+        }
     }
 
     override fun onInterrupt() {
@@ -74,10 +86,18 @@ class ChamCongAccessibilityService : AccessibilityService() {
         super.onDestroy()
     }
 
-    private fun findTextInNode(
-        node: android.view.accessibility.AccessibilityNodeInfo,
-        target: String
-    ): Boolean {
+    private fun triggerAttendance() {
+        val now = System.currentTimeMillis()
+        if (now - lastTriggerTime < COOLDOWN_MS) {
+            Log.d(TAG, "Cooldown active, skipping")
+            return
+        }
+        lastTriggerTime = now
+        Log.i(TAG, "Detected: '$TRIGGER_TEXT' — calling API")
+        callAttendanceApi()
+    }
+
+    private fun findTextInNode(node: AccessibilityNodeInfo, target: String): Boolean {
         val nodeText = node.text?.toString() ?: ""
         if (nodeText.contains(target, ignoreCase = true)) {
             return true
@@ -122,8 +142,8 @@ class ChamCongAccessibilityService : AccessibilityService() {
                 conn.requestMethod = "POST"
                 conn.setRequestProperty("Content-Type", "application/json")
                 conn.setRequestProperty("x-api-key", apiSecret)
-                conn.connectTimeout = 5_000
-                conn.readTimeout = 5_000
+                conn.connectTimeout = 10_000
+                conn.readTimeout = 10_000
                 conn.doOutput = true
 
                 val body = """{"telegram_id":$telegramId}"""
