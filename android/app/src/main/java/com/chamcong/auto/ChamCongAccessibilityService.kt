@@ -1,6 +1,8 @@
 package com.chamcong.auto
 
 import android.accessibilityservice.AccessibilityService
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.widget.Toast
@@ -21,6 +23,7 @@ class ChamCongAccessibilityService : AccessibilityService() {
     }
 
     private val executor = Executors.newSingleThreadExecutor()
+    private val mainHandler = Handler(Looper.getMainLooper())
     private val isSending = AtomicBoolean(false)
     private var lastTriggerTime = 0L
 
@@ -29,29 +32,62 @@ class ChamCongAccessibilityService : AccessibilityService() {
 
         val prefs = getSharedPreferences("chamcong_config", MODE_PRIVATE)
         val targetPackage = prefs.getString("humax_package", "") ?: ""
+        val apiUrl = prefs.getString("api_url", "") ?: ""
+        val telegramId = prefs.getString("telegram_id", "") ?: ""
+
+        Log.i(TAG, "=== SERVICE CONNECTED ===")
+        Log.i(TAG, "  targetPackage = '$targetPackage'")
+        Log.i(TAG, "  apiUrl        = '$apiUrl'")
+        Log.i(TAG, "  telegramId    = '$telegramId'")
 
         if (targetPackage.isNotBlank()) {
             serviceInfo = serviceInfo.apply {
                 packageNames = arrayOf(targetPackage)
             }
-            Log.i(TAG, "Service connected, filtering package: $targetPackage")
+            Log.i(TAG, "Package filter applied: $targetPackage")
         } else {
-            Log.w(TAG, "Service connected, no package filter")
+            Log.w(TAG, "WARNING: No package filter set — watching ALL packages!")
+            Log.w(TAG, "Go to app settings and save the Humax package name first.")
+        }
+
+        mainHandler.post {
+            Toast.makeText(this, "ChamCong Service: BẬT ✓", Toast.LENGTH_LONG).show()
         }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
 
-        val prefs = getSharedPreferences("chamcong_config", MODE_PRIVATE)
-        val targetPackage = prefs.getString("humax_package", "") ?: ""
+        // Only care about window state changes (app opened/popup appeared)
+        val eventType = event.eventType
+        val isRelevantType = eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
+                             eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
+        if (!isRelevantType) return
 
-        if (targetPackage.isNotBlank() && event.packageName?.toString() != targetPackage) {
-            return
+        val pkg = event.packageName?.toString() ?: return
+
+        val prefs = getSharedPreferences("chamcong_config", MODE_PRIVATE)
+        val targetPackage = prefs.getString("humax_package", "com.phanmemnhansu") ?: "com.phanmemnhansu"
+
+        // Always log when we see the target package to confirm detection works
+        if (pkg == targetPackage) {
+            Log.d(TAG, "[DETECTED] Event from target package: $pkg, type=${AccessibilityEvent.eventTypeToString(eventType)}")
+        } else {
+            return // Not our target app, skip silently
         }
 
         val now = System.currentTimeMillis()
-        if (now - lastTriggerTime < COOLDOWN_MS) return
+        val remainingCooldown = COOLDOWN_MS - (now - lastTriggerTime)
+        if (remainingCooldown > 0) {
+            Log.d(TAG, "Cooldown active, ${remainingCooldown / 1000}s remaining — skip")
+            return
+        }
+
+        // Already sending check
+        if (isSending.get()) {
+            Log.d(TAG, "Already sending API request — skip duplicate event")
+            return
+        }
 
         lastTriggerTime = now
 
@@ -60,8 +96,13 @@ class ChamCongAccessibilityService : AccessibilityService() {
         // so the recorded attendance time is always accurate.
         val capturedTime = java.util.Date(now)
 
-        Log.i(TAG, "Humax App triggered — calling API with client_time")
-        Toast.makeText(this, "Auto Chấm Công: Đang gửi...", Toast.LENGTH_SHORT).show()
+        Log.i(TAG, ">>> TRIGGER: Humax App detected — calling attendance API with client_time")
+
+        // Toast MUST run on main thread
+        mainHandler.post {
+            Toast.makeText(this, "Auto Chấm Công: Đang gửi...", Toast.LENGTH_SHORT).show()
+        }
+
         callAttendanceApi(capturedTime)
     }
 
@@ -85,8 +126,16 @@ class ChamCongAccessibilityService : AccessibilityService() {
         val apiSecret = prefs.getString("api_secret", "") ?: ""
         val telegramId = prefs.getString("telegram_id", "") ?: ""
 
+        Log.i(TAG, "--- callAttendanceApi ---")
+        Log.i(TAG, "  apiUrl     = '$apiUrl'")
+        Log.i(TAG, "  telegramId = '$telegramId'")
+        Log.i(TAG, "  secret set = ${apiSecret.isNotBlank()}")
+
         if (apiUrl.isBlank() || telegramId.isBlank()) {
-            Log.e(TAG, "API URL or Telegram ID not configured")
+            Log.e(TAG, "ABORT: API URL or Telegram ID is blank — check app settings!")
+            mainHandler.post {
+                Toast.makeText(this, "Lỗi: Chưa cấu hình API URL hoặc Telegram ID!", Toast.LENGTH_LONG).show()
+            }
             isSending.set(false)
             return
         }
@@ -96,20 +145,24 @@ class ChamCongAccessibilityService : AccessibilityService() {
             timeZone = TimeZone.getTimeZone("UTC")
         }
         val clientTimeIso = isoFormat.format(capturedTime)
+        val endpoint = "${apiUrl.trimEnd('/')}/api/attendance"
+        Log.i(TAG, "  endpoint   = '$endpoint'")
+        Log.i(TAG, "  clientTime = '$clientTimeIso'")
 
         executor.execute {
             try {
-                val url = URL("${apiUrl.trimEnd('/')}/api/attendance")
+                val url = URL(endpoint)
                 val conn = url.openConnection() as HttpURLConnection
                 conn.requestMethod = "POST"
                 conn.setRequestProperty("Content-Type", "application/json")
                 conn.setRequestProperty("x-api-key", apiSecret)
-                conn.connectTimeout = 15_000
-                conn.readTimeout = 15_000
+                conn.connectTimeout = 60_000  // 60s to handle Render cold start
+                conn.readTimeout = 60_000
                 conn.doOutput = true
 
                 // Send client_time so backend records accurate time even on cold start
                 val body = """{"telegram_id":$telegramId,"client_time":"$clientTimeIso"}"""
+                Log.i(TAG, "  body = $body")
                 OutputStreamWriter(conn.outputStream, Charsets.UTF_8).use { it.write(body) }
 
                 val code = conn.responseCode
@@ -119,10 +172,18 @@ class ChamCongAccessibilityService : AccessibilityService() {
                     conn.errorStream?.bufferedReader()?.readText() ?: "No error body"
                 }
 
-                Log.i(TAG, "API response [$code]: $response")
+                Log.i(TAG, "<<< API response [$code]: $response")
                 conn.disconnect()
+
+                mainHandler.post {
+                    val msg = if (code in 200..299) "✅ Chấm công thành công!" else "⚠️ API lỗi: $code"
+                    Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+                }
             } catch (e: Exception) {
-                Log.e(TAG, "API call failed", e)
+                Log.e(TAG, "API call FAILED", e)
+                mainHandler.post {
+                    Toast.makeText(this, "❌ Lỗi kết nối: ${e.message}", Toast.LENGTH_LONG).show()
+                }
             } finally {
                 isSending.set(false)
             }

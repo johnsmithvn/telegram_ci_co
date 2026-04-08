@@ -6,3 +6,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 .agent
+
+# Android / Gradle generated files
+**/.gradle/
+android/**/build/
