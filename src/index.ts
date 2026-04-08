@@ -6,9 +6,30 @@ import { pool } from "./db/postgres";
 import { logger } from "./logger";
 import { startSchedulers } from "./schedulers";
 
+async function configureBotMenu(bot: ReturnType<typeof createTelegramBot>): Promise<void> {
+  const commands = [
+    { command: "help", description: "Xem huong dan su dung" },
+    { command: "today", description: "Xem tong gio hom nay" },
+    { command: "week", description: "Xem bao cao tuan" },
+    { command: "month", description: "Xem tong ket thang" },
+    { command: "add", description: "Them gio thu cong" },
+    { command: "stop", description: "Dung bot cho tai khoan nay" }
+  ];
+
+  await bot.telegram.setMyCommands(commands);
+  await bot.telegram.setChatMenuButton({ type: "commands" });
+}
+
 async function bootstrap(): Promise<void> {
   const bot = createTelegramBot(env.BOT_TOKEN, env.TIMEZONE);
   const app = express();
+
+  try {
+    await configureBotMenu(bot);
+    logger.info("Telegram command menu configured");
+  } catch (error) {
+    logger.warn({ error }, "Failed to configure Telegram command menu");
+  }
 
   app.use(express.json({ limit: "1mb" }));
   app.get("/health", (_req, res) => {
