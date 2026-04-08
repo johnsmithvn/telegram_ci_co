@@ -9,6 +9,7 @@ import {
 import { attachTrackedUser } from "./middleware";
 import { env } from "../config/env";
 import { handleAddCommand, handleAddFlowMessage } from "../handlers/add";
+import { handleDeleteDayCommand, handleDeleteDayFlowMessage } from "../handlers/deleteDay";
 import { handleAttendance } from "../handlers/attendance";
 import { handleManualHoursForOpenSession, replyNoManualTarget } from "../handlers/manualHours";
 import {
@@ -49,6 +50,16 @@ export function createTelegramBot(botToken: string, timezoneName: string): Teleg
   bot.command("add", async (ctx) => {
     const text = "text" in ctx.message ? ctx.message.text : "/add";
     await handleAddCommand(ctx, text, timezoneName);
+  });
+
+  bot.command("del", async (ctx) => {
+    const text = "text" in ctx.message ? ctx.message.text : "/del";
+    await handleDeleteDayCommand(ctx, text, timezoneName);
+  });
+
+  bot.command("delete", async (ctx) => {
+    const text = "text" in ctx.message ? ctx.message.text : "/delete";
+    await handleDeleteDayCommand(ctx, text, timezoneName);
   });
 
   bot.command("today", async (ctx) => {
@@ -94,6 +105,16 @@ export function createTelegramBot(botToken: string, timezoneName: string): Teleg
 
     if (text.startsWith("/add")) {
       await handleAddCommand(ctx, text, timezoneName);
+      return;
+    }
+
+    if (text.startsWith("/del") || text.startsWith("/delete")) {
+      await handleDeleteDayCommand(ctx, text, timezoneName);
+      return;
+    }
+
+    const deleteFlowProcessed = await handleDeleteDayFlowMessage(ctx, text, timezoneName);
+    if (deleteFlowProcessed) {
       return;
     }
 

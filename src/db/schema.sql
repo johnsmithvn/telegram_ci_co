@@ -12,9 +12,33 @@ BEGIN
     CREATE TYPE user_presence_status AS ENUM ('idle', 'working');
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'add_flow_step') THEN
-    CREATE TYPE add_flow_step AS ENUM ('NONE', 'WAITING_DATE', 'WAITING_HOURS');
+    CREATE TYPE add_flow_step AS ENUM (
+      'NONE',
+      'WAITING_DATE',
+      'WAITING_MODE',
+      'WAITING_DIRECT_RANGE',
+      'WAITING_START_HOUR',
+      'WAITING_START_MINUTE',
+      'WAITING_END_HOUR',
+      'WAITING_END_MINUTE',
+      'WAITING_HOURS',
+      'WAITING_START_TIME',
+      'WAITING_END_TIME'
+    );
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'delete_flow_step') THEN
+    CREATE TYPE delete_flow_step AS ENUM ('NONE', 'WAITING_DATE');
   END IF;
 END$$;
+
+ALTER TYPE add_flow_step ADD VALUE IF NOT EXISTS 'WAITING_MODE';
+ALTER TYPE add_flow_step ADD VALUE IF NOT EXISTS 'WAITING_DIRECT_RANGE';
+ALTER TYPE add_flow_step ADD VALUE IF NOT EXISTS 'WAITING_START_HOUR';
+ALTER TYPE add_flow_step ADD VALUE IF NOT EXISTS 'WAITING_START_MINUTE';
+ALTER TYPE add_flow_step ADD VALUE IF NOT EXISTS 'WAITING_END_HOUR';
+ALTER TYPE add_flow_step ADD VALUE IF NOT EXISTS 'WAITING_END_MINUTE';
+ALTER TYPE add_flow_step ADD VALUE IF NOT EXISTS 'WAITING_START_TIME';
+ALTER TYPE add_flow_step ADD VALUE IF NOT EXISTS 'WAITING_END_TIME';
 
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -70,11 +94,31 @@ CREATE TABLE IF NOT EXISTS user_state (
   manual_entry_pending_date DATE,
   add_flow_step add_flow_step NOT NULL DEFAULT 'NONE',
   add_flow_date DATE,
+  add_flow_start_time TIME,
+  add_flow_start_hour SMALLINT,
+  add_flow_end_hour SMALLINT,
+  delete_flow_step delete_flow_step NOT NULL DEFAULT 'NONE',
+  delete_flow_date DATE,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 ALTER TABLE user_state
   ADD COLUMN IF NOT EXISTS last_target_met_week_start DATE;
+
+ALTER TABLE user_state
+  ADD COLUMN IF NOT EXISTS add_flow_start_time TIME;
+
+ALTER TABLE user_state
+  ADD COLUMN IF NOT EXISTS add_flow_start_hour SMALLINT;
+
+ALTER TABLE user_state
+  ADD COLUMN IF NOT EXISTS add_flow_end_hour SMALLINT;
+
+ALTER TABLE user_state
+  ADD COLUMN IF NOT EXISTS delete_flow_step delete_flow_step NOT NULL DEFAULT 'NONE';
+
+ALTER TABLE user_state
+  ADD COLUMN IF NOT EXISTS delete_flow_date DATE;
 
 CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS TRIGGER AS $$

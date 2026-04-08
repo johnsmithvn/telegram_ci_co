@@ -26,6 +26,53 @@ export function buildAddDayKeyboard(choices: AddFlowDayChoice[]) {
     .persistent();
 }
 
+export function buildAddModeKeyboard() {
+  return Markup.keyboard([
+    ["1. Nhap lien"],
+    ["2. Tach gio/phut"]
+  ])
+    .resize(true)
+    .oneTime(false)
+    .persistent();
+}
+
+export function buildAddDirectTimeKeyboard() {
+  return Markup.keyboard([
+    [ATTENDANCE_LABEL],
+    ["08:00", "08:30", "09:00", "09:30"],
+    ["12:00", "13:00", "17:00", "17:30", "18:00"]
+  ])
+    .resize(true)
+    .oneTime(false)
+    .persistent();
+}
+
+export function buildAddHourKeyboard() {
+  const rows: string[][] = [];
+  const hours = Array.from({ length: 24 }, (_, index) => index.toString());
+
+  for (let index = 0; index < hours.length; index += 6) {
+    rows.push(hours.slice(index, index + 6));
+  }
+
+  return Markup.keyboard([[ATTENDANCE_LABEL], ...rows])
+    .resize(true)
+    .oneTime(false)
+    .persistent();
+}
+
+export function buildAddMinuteKeyboard() {
+  return Markup.keyboard([
+    [ATTENDANCE_LABEL],
+    ["00", "05", "10", "15"],
+    ["20", "25", "30", "35"],
+    ["40", "45", "50", "55"]
+  ])
+    .resize(true)
+    .oneTime(false)
+    .persistent();
+}
+
 export function buildStopConfirmInlineKeyboard() {
   return Markup.inlineKeyboard([
     [

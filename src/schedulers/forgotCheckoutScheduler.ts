@@ -2,12 +2,12 @@ import cron, { ScheduledTask } from "node-cron";
 import { Telegraf } from "telegraf";
 import { BotContext } from "../bot/context";
 import { logger } from "../logger";
-import { buildForgotCheckoutPrompt } from "../services/reportService";
+import { buildAutoCheckoutAtEndOfDayMessage } from "../services/reportService";
 import {
+  autoCloseOpenSessionAtEndOfWorkDate,
   getOpenSessionsForReminder,
   getUserState,
-  markForgotPrompt,
-  setPendingManual
+  markForgotPrompt
 } from "../services/sessionService";
 import { getLocalDateString } from "../utils/time";
 
@@ -29,8 +29,20 @@ export function startForgotCheckoutScheduler(
             continue;
           }
 
-          await bot.telegram.sendMessage(Number(row.user.chatId), buildForgotCheckoutPrompt());
-          await setPendingManual(row.user.id, row.session.id, row.session.workDate);
+          const closed = await autoCloseOpenSessionAtEndOfWorkDate(
+            row.user.id,
+            row.session.workDate,
+            timezoneName
+          );
+
+          if (!closed) {
+            continue;
+          }
+
+          await bot.telegram.sendMessage(
+            Number(row.user.chatId),
+            buildAutoCheckoutAtEndOfDayMessage(row.session.workDate, closed.workedMinutes)
+          );
           await markForgotPrompt(row.user.id, today);
         }
       } catch (error) {

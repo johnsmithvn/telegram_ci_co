@@ -90,6 +90,13 @@ export function buildForgotCheckoutPrompt(): string {
   ].join("\n");
 }
 
+export function buildAutoCheckoutAtEndOfDayMessage(workDate: string, workedMinutes: number): string {
+  return [
+    `Đến 23:59 ngày ${workDate} nên mình tự check-out giúp bạn.`,
+    `Tổng ca được tính: ${formatMinutes(workedMinutes)}.`
+  ].join("\n");
+}
+
 export function buildManualHoursClosedMessage(hours: number): string {
   return `Đã ghi nhận ${hours} tiếng cho phiên đang mở và đóng ca giúp bạn.`;
 }
@@ -102,8 +109,37 @@ export function buildAddAskDateMessage(): string {
   return "Chon ngay can add bang nut T2 -> T7 ben duoi (hoac nhap YYYY-MM-DD).";
 }
 
-export function buildAddAskHoursMessage(workDate: string): string {
-  return `Ok, ngày ${workDate}. Làm bao nhiêu tiếng? (ví dụ 8 hoặc 7.5)`;
+export function buildAddAskModeMessage(workDate: string): string {
+  return [
+    `Ok, ngày ${workDate}.`,
+    "Chọn 1 trong 2 mode:",
+    "1. Nhập liền 2 mốc giờ",
+    "2. Nhập tách giờ/phút vào rồi giờ/phút ra"
+  ].join("\n");
+}
+
+export function buildAddAskDirectTimeMessage(workDate: string): string {
+  return [
+    `Nhập liền cho ngày ${workDate}.`,
+    "Ví dụ: 08:30 17:45",
+    "Hoặc: 830 1745"
+  ].join("\n");
+}
+
+export function buildAddAskStartHourMessage(workDate: string): string {
+  return `Ngày ${workDate}. Nhập giờ vào trước (0-23), ví dụ 8 hoặc bấm số.`;
+}
+
+export function buildAddAskStartMinuteMessage(workDate: string, startHour: number): string {
+  return `Ngày ${workDate}, đã nhận giờ vào ${startHour}. Giờ vào phút nào? (0-59, ví dụ 30)`;
+}
+
+export function buildAddAskEndHourMessage(workDate: string, startTime: string): string {
+  return `Đã nhận giờ vào ${startTime} cho ngày ${workDate}. Nhập giờ ra trước (0-23).`;
+}
+
+export function buildAddAskEndMinuteMessage(workDate: string, endHour: number): string {
+  return `Ngày ${workDate}, đã nhận giờ ra ${endHour}. Giờ ra phút nào? (0-59, ví dụ 45)`;
 }
 
 export function buildInvalidDateMessage(): string {
@@ -118,8 +154,44 @@ export function buildInvalidHoursMessage(): string {
   return "Giờ chưa hợp lệ. Nhập số từ 0 đến 24, ví dụ `8` hoặc `8.5`.";
 }
 
+export function buildInvalidTimeMessage(): string {
+  return "Giờ chưa hợp lệ. Dùng 8, 8h, 830 hoặc 08:30.";
+}
+
+export function buildInvalidHourMessage(): string {
+  return "Giờ chưa hợp lệ. Nhập số từ 0 đến 23, ví dụ 8.";
+}
+
+export function buildInvalidMinuteMessage(): string {
+  return "Phút chưa hợp lệ. Nhập số từ 0 đến 59, ví dụ 30.";
+}
+
 export function buildManualNoPendingMessage(): string {
   return "Hiện không có phiên mở nào để nhập giờ thủ công.";
+}
+
+export function buildDeleteAskDateMessage(): string {
+  return [
+    "Chọn ngày muốn xóa bằng nút T2 -> T7 bên dưới (hoặc nhập YYYY-MM-DD).",
+    "Hành động này sẽ xóa toàn bộ log của riêng ngày đó."
+  ].join("\n");
+}
+
+export function buildDeleteSuccessMessage(workDate: string, deletedSessions: number): string {
+  return `Đã xóa ${deletedSessions} session của ngày ${workDate}.`;
+}
+
+export function buildDeleteNothingMessage(workDate: string): string {
+  return `Không có dữ liệu nào để xóa cho ngày ${workDate}.`;
+}
+
+export function buildManualPastDayAddedByTimeMessage(
+  workDate: string,
+  startTime: string,
+  endTime: string,
+  totalMinutes: number
+): string {
+  return `Đã ghi nhận ngày ${workDate}: ${startTime} -> ${endTime} (${formatMinutes(totalMinutes)}).`;
 }
 
 export function buildUnknownTextMessage(): string {
@@ -135,7 +207,9 @@ export function buildHelpMessage(): string {
     "`/today` | `/week` | `/week YYYY-MM-DD` | `/month`",
     "",
     "Lenh them gio thu cong:",
-    "`/add` (chon T2-T7 roi nhap gio) hoac `/add YYYY-MM-DD 8.5`",
+    "`/add` (chon T2-T7 roi chon mode) hoac `/add YYYY-MM-DD 8 1730`",
+    "Xoa rieng 1 ngay:",
+    "`/del` hoac `/delete` (chon T2-T7 roi xoa toan bo log ngay do)",
     "",
     "Dung bot cho chinh ban:",
     "`/stop` (bot se hoi Yes/No)",

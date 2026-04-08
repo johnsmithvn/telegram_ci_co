@@ -313,3 +313,24 @@ export async function truncateAllTrackingData(): Promise<void> {
     `
   );
 }
+
+export async function deleteSessionsByDate(userId: string, workDate: string, client?: Queryable): Promise<number> {
+  const result = client
+    ? await client.query(
+        `
+      DELETE FROM work_sessions
+      WHERE user_id = $1
+        AND work_date = $2::date
+    `,
+        [userId, workDate]
+      )
+    : await query(
+    `
+      DELETE FROM work_sessions
+      WHERE user_id = $1
+        AND work_date = $2::date
+    `,
+        [userId, workDate]
+      );
+  return result.rowCount ?? 0;
+}

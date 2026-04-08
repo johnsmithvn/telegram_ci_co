@@ -72,6 +72,93 @@ export function parseHoursInput(text: string): number | null {
   return value;
 }
 
+export function parseClockTimeInput(text: string): string | null {
+  const trimmed = text.trim().toLowerCase();
+
+  const withColon = trimmed.match(/^([01]?\d|2[0-3])[:h]([0-5]\d)$/);
+  if (withColon) {
+    const hour = Number(withColon[1]);
+    const minute = Number(withColon[2]);
+    return `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
+  }
+
+  const hourOnly = trimmed.match(/^([01]?\d|2[0-3])h?$/);
+  if (hourOnly) {
+    const hour = Number(hourOnly[1]);
+    return `${hour.toString().padStart(2, "0")}:00`;
+  }
+
+  const compact = trimmed.match(/^(\d{3,4})$/);
+  if (compact) {
+    const digits = compact[1] ?? "";
+    if (digits.length < 3) {
+      return null;
+    }
+    const hourPart = digits.length === 3 ? digits.slice(0, 1) : digits.slice(0, 2);
+    const minutePart = digits.slice(-2);
+    const hour = Number(hourPart);
+    const minute = Number(minutePart);
+
+    if (Number.isInteger(hour) && Number.isInteger(minute) && hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+      return `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
+    }
+  }
+
+  return null;
+}
+
+export function parseHourInput(text: string): number | null {
+  const trimmed = text.trim();
+  if (!/^\d{1,2}$/.test(trimmed)) {
+    return null;
+  }
+
+  const value = Number(trimmed);
+  if (!Number.isInteger(value) || value < 0 || value > 23) {
+    return null;
+  }
+
+  return value;
+}
+
+export function parseMinuteInput(text: string): number | null {
+  const trimmed = text.trim();
+  if (!/^\d{1,2}$/.test(trimmed)) {
+    return null;
+  }
+
+  const value = Number(trimmed);
+  if (!Number.isInteger(value) || value < 0 || value > 59) {
+    return null;
+  }
+
+  return value;
+}
+
+export function formatClockParts(hour: number, minute: number): string {
+  return `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
+}
+
+export function parseDirectTimeRangeInput(text: string): { startTime: string; endTime: string } | null {
+  const parts = text.trim().split(/\s+/).filter(Boolean);
+  if (parts.length < 2) {
+    return null;
+  }
+
+  const [startRaw, endRaw] = parts;
+  if (!startRaw || !endRaw) {
+    return null;
+  }
+
+  const startTime = parseClockTimeInput(startRaw);
+  const endTime = parseClockTimeInput(endRaw);
+  if (!startTime || !endTime) {
+    return null;
+  }
+
+  return { startTime, endTime };
+}
+
 export function parseDateInput(raw: string, timezoneName: string, referenceDate: Date = new Date()): string | null {
   const value = raw.trim();
   const formats = ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", "DD-MM", "DD/MM"];

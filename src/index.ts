@@ -13,11 +13,12 @@ async function configureBotMenu(bot: ReturnType<typeof createTelegramBot>): Prom
     { command: "week", description: "Xem bao cao tuan" },
     { command: "month", description: "Xem tong ket thang" },
     { command: "add", description: "Them gio thu cong" },
+    { command: "del", description: "Xoa log cua 1 ngay" },
     { command: "stop", description: "Dung bot cho tai khoan nay" }
   ];
 
   await bot.telegram.setMyCommands(commands);
-  await bot.telegram.setChatMenuButton({ type: "commands" });
+  await bot.telegram.setChatMenuButton({ menuButton: { type: "commands" } });
 }
 
 async function bootstrap(): Promise<void> {

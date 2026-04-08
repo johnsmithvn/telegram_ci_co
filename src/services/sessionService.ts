@@ -11,6 +11,7 @@ import {
   getWorkedMinutesInRange,
   insertClosedSession,
   listOpenSessionsWithUsers,
+  deleteSessionsByDate,
   truncateAllTrackingData,
   updateSessionEndTime
 } from "../db/repositories/sessionRepository";
@@ -19,6 +20,7 @@ import {
   getState,
   markForgotCheckoutPrompt,
   setAddFlowState,
+  setDeleteFlowState,
   setKpiWarningWeek,
   setPendingManualEntry
 } from "../db/repositories/stateRepository";
@@ -272,6 +274,29 @@ export async function closeOpenSessionByManualHours(
   });
 }
 
+export async function autoCloseOpenSessionAtEndOfWorkDate(
+  userId: string,
+  workDate: string,
+  timezoneName: string
+): Promise<{ session: WorkSession; workedMinutes: number } | null> {
+  return withTransaction(async (client) => {
+    const openSession = await findOpenSession(userId, client);
+    if (!openSession || openSession.workDate !== workDate) {
+      return null;
+    }
+
+    const endTime = dayjs.tz(`${workDate} 23:59`, "YYYY-MM-DD HH:mm", timezoneName).toDate();
+    const rawMinutes = minutesBetween(openSession.startTime, endTime);
+    const durationMinutes = Math.max(0, rawMinutes - LUNCH_BREAK_MINUTES);
+    const done = await closeSession(openSession.id, endTime, durationMinutes, "auto", workDate, client);
+
+    await setIdleStateTx(client, userId);
+    await setPendingManualEntry(userId, null, null);
+
+    return { session: done, workedMinutes: durationMinutes };
+  });
+}
+
 export async function addManualSessionForDate(
   userId: string,
   workDate: string,
@@ -289,6 +314,37 @@ export async function addManualSessionForDate(
     workDate,
     source: "manual"
   });
+}
+
+export async function addManualSessionForDateByTimeRange(
+  userId: string,
+  workDate: string,
+  startClock: string,
+  endClock: string,
+  timezoneName: string
+): Promise<{ session: WorkSession; durationMinutes: number }> {
+  const startTime = dayjs.tz(`${workDate} ${startClock}`, "YYYY-MM-DD HH:mm", timezoneName);
+  const endTime = dayjs.tz(`${workDate} ${endClock}`, "YYYY-MM-DD HH:mm", timezoneName);
+
+  if (!startTime.isValid() || !endTime.isValid()) {
+    throw new Error("Invalid time range");
+  }
+
+  const durationMinutes = endTime.diff(startTime, "minute");
+  if (durationMinutes <= 0) {
+    throw new Error("End time must be after start time");
+  }
+
+  const session = await insertClosedSession({
+    userId,
+    startTime: startTime.toDate(),
+    endTime: endTime.toDate(),
+    durationMinutes,
+    workDate,
+    source: "manual"
+  });
+
+  return { session, durationMinutes };
 }
 
 export async function getWeeklySummary(userId: string, now: Date, timezoneName: string): Promise<WeeklySummary> {
@@ -317,11 +373,57 @@ export async function beginAddFlow(userId: string): Promise<void> {
 }
 
 export async function setAddFlowDate(userId: string, workDate: string): Promise<void> {
-  await setAddFlowState(userId, "WAITING_HOURS", workDate);
+  await setAddFlowState(userId, "WAITING_MODE", workDate, null, null, null);
+}
+
+export async function setAddFlowModeDirect(userId: string, workDate: string): Promise<void> {
+  await setAddFlowState(userId, "WAITING_DIRECT_RANGE", workDate, null, null, null);
+}
+
+export async function setAddFlowModeStepwise(userId: string, workDate: string): Promise<void> {
+  await setAddFlowState(userId, "WAITING_START_HOUR", workDate, null, null, null);
+}
+
+export async function setAddFlowStartHour(userId: string, workDate: string, startHour: number): Promise<void> {
+  await setAddFlowState(userId, "WAITING_START_MINUTE", workDate, null, startHour, null);
+}
+
+export async function setAddFlowStartTime(userId: string, workDate: string, startTime: string): Promise<void> {
+  await setAddFlowState(userId, "WAITING_END_HOUR", workDate, startTime, null, null);
+}
+
+export async function setAddFlowEndHour(
+  userId: string,
+  workDate: string,
+  startTime: string,
+  endHour: number
+): Promise<void> {
+  await setAddFlowState(userId, "WAITING_END_MINUTE", workDate, startTime, null, endHour);
 }
 
 export async function clearAddFlow(userId: string): Promise<void> {
-  await setAddFlowState(userId, "NONE", null);
+  await setAddFlowState(userId, "NONE", null, null, null, null);
+}
+
+export async function beginDeleteFlow(userId: string): Promise<void> {
+  await setDeleteFlowState(userId, "WAITING_DATE", null);
+}
+
+export async function clearDeleteFlow(userId: string): Promise<void> {
+  await setDeleteFlowState(userId, "NONE", null);
+}
+
+export async function deleteSessionsForDate(userId: string, workDate: string): Promise<number> {
+  return withTransaction(async (client) => {
+    const openSession = await findOpenSession(userId, client);
+    const deleted = await deleteSessionsByDate(userId, workDate, client);
+
+    if (openSession && openSession.workDate === workDate && deleted > 0) {
+      await setIdleStateTx(client, userId);
+    }
+
+    return deleted;
+  });
 }
 
 export async function setPendingManual(userId: string, sessionId: string, date: string): Promise<void> {
