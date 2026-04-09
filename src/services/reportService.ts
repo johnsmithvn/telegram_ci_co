@@ -55,15 +55,33 @@ export function buildBurnDownReport(input: {
   const dayName = getWeekdayNameVi(input.now, input.timezoneName);
   const remaining = formatMinutes(Math.max(0, input.remainingMinutes));
   const required = formatMinutes(Math.max(0, input.requiredMinutesPerDay));
-  const daysLeftText = input.daysLeft === 1 ? "1 ngay lam viec" : `${input.daysLeft} ngay lam viec`;
+  const daysLeftText = input.daysLeft === 1 ? "1 ngày làm việc" : `${input.daysLeft} ngày làm việc`;
   const progressBar = buildProgressBar(input.workedMinutes, input.targetMinutes);
 
+  let strategyText = "";
+  let closingText = "";
+
+  if (input.remainingMinutes <= 0) {
+    return [
+      "Báo cáo tình hình lúc 17:30!",
+      `Hôm nay là ${dayName}, bạn đã hoàn thành đủ KPI tuần này!`,
+      `${progressBar} ${formatMinutes(input.workedMinutes)} / ${formatMinutes(input.targetMinutes)}`,
+      "Quy định là không cần làm nữa, về nghỉ ngơi thôi nghen 🎉"
+    ].join("\n");
+  } else if (input.requiredMinutesPerDay <= 480) {
+    strategyText = `Chúc mừng bạn không cần phải OT triền miên! Từ giờ đến cuối tuần còn ${daysLeftText}, chỉ cần làm mỗi ngày ${required} (dưới 8 tiếng) để đủ chỉ tiêu.`;
+    closingText = "Chill chill về nhà đúng giờ nào 😎";
+  } else {
+    strategyText = `Chiến thuật cày bù: từ giờ đến hết tuần còn ${daysLeftText}, mỗi ngày cần cày ${required} để kịp đội.`;
+    closingText = "Đừng để dồn cuối tuần rồi cày hộc máu. 🥲";
+  }
+
   return [
-    "Bao cao tinh hinh luc 17:30!",
-    `Hom nay la ${dayName}, ban hien dang no KPI ${remaining}.`,
+    "Báo cáo tình hình lúc 17:30!",
+    `Hôm nay là ${dayName}, bạn hiện đang nợ KPI ${remaining}.`,
     `${progressBar} ${formatMinutes(input.workedMinutes)} / ${formatMinutes(input.targetMinutes)}`,
-    `Chien thuat cay bu: tu gio den het tuan con ${daysLeftText}, moi ngay can ${required}.`,
-    "Dung de don cuoi tuan roi cay hoc mau."
+    strategyText,
+    closingText
   ].join("\n");
 }
 
@@ -106,7 +124,7 @@ export function buildManualPastDayAddedMessage(workDate: string, hours: number):
 }
 
 export function buildAddAskDateMessage(): string {
-  return "Chon ngay can add bang nut T2 -> T7 ben duoi (hoac nhap YYYY-MM-DD).";
+  return "Chọn ngày cần add bằng nút T2 -> T7 bên dưới (hoặc nhập YYYY-MM-DD).";
 }
 
 export function buildAddAskModeMessage(workDate: string): string {
@@ -143,11 +161,11 @@ export function buildAddAskEndMinuteMessage(workDate: string, endHour: number): 
 }
 
 export function buildInvalidDateMessage(): string {
-  return "Ngay chua hop le. Bam nut T2 -> T7 hoac nhap YYYY-MM-DD.";
+  return "Ngày chưa hợp lệ. Bấm nút T2 -> T7 hoặc nhập YYYY-MM-DD.";
 }
 
 export function buildWeekInvalidDateMessage(): string {
-  return "Ngay khong hop le. Dung `/week` hoac `/week YYYY-MM-DD`.";
+  return "Ngày không hợp lệ. Dùng `/week` hoặc `/week YYYY-MM-DD`.";
 }
 
 export function buildInvalidHoursMessage(): string {
@@ -195,7 +213,7 @@ export function buildManualPastDayAddedByTimeMessage(
 }
 
 export function buildUnknownTextMessage(): string {
-  return "Minh chua hieu tin nhan nay. Bam nut Cham cong hoac go `/help`.";
+  return "Mình chưa hiểu tin nhắn này. Bấm nút Chấm công hoặc gõ `/help`.";
 }
 
 export function buildHelpMessage(): string {

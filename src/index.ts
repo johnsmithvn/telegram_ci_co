@@ -8,7 +8,7 @@ import { startSchedulers } from "./schedulers";
 
 async function configureBotMenu(bot: ReturnType<typeof createTelegramBot>): Promise<void> {
   const commands = [
-    { command: "help", description: "Xem huong dan su dung" }
+    { command: "menu", description: "Xem hướng dẫn sử dụng" }
   ];
 
   await bot.telegram.setMyCommands(commands);

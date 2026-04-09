@@ -47,6 +47,10 @@ export function createTelegramBot(botToken: string, timezoneName: string): Teleg
     await handleStart(ctx);
   });
 
+  bot.command("menu", async (ctx) => {
+    await handleStart(ctx);
+  });
+
   bot.command("add", async (ctx) => {
     const text = "text" in ctx.message ? ctx.message.text : "/add";
     await handleAddCommand(ctx, text, timezoneName);

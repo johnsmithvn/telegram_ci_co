@@ -204,7 +204,9 @@ export async function checkOut(
       return null;
     }
     const rawMinutes = minutesBetween(openSession.startTime, now);
-    const durationMinutes = Math.max(0, rawMinutes - LUNCH_BREAK_MINUTES);
+    const durationMinutes = rawMinutes > LUNCH_BREAK_MINUTES * 4
+      ? Math.max(0, rawMinutes - LUNCH_BREAK_MINUTES)
+      : rawMinutes;
     const done = await closeSession(openSession.id, now, durationMinutes, "normal", null, client);
     await setIdleStateTx(client, userId);
     return { session: done, workedMinutes: durationMinutes };
@@ -287,7 +289,9 @@ export async function autoCloseOpenSessionAtEndOfWorkDate(
 
     const endTime = dayjs.tz(`${workDate} 23:59`, "YYYY-MM-DD HH:mm", timezoneName).toDate();
     const rawMinutes = minutesBetween(openSession.startTime, endTime);
-    const durationMinutes = Math.max(0, rawMinutes - LUNCH_BREAK_MINUTES);
+    const durationMinutes = rawMinutes > LUNCH_BREAK_MINUTES * 4
+      ? Math.max(0, rawMinutes - LUNCH_BREAK_MINUTES)
+      : rawMinutes;
     const done = await closeSession(openSession.id, endTime, durationMinutes, "auto", workDate, client);
 
     await setIdleStateTx(client, userId);
@@ -330,10 +334,14 @@ export async function addManualSessionForDateByTimeRange(
     throw new Error("Invalid time range");
   }
 
-  const durationMinutes = endTime.diff(startTime, "minute");
-  if (durationMinutes <= 0) {
+  const rawMinutes = endTime.diff(startTime, "minute");
+  if (rawMinutes <= 0) {
     throw new Error("End time must be after start time");
   }
+
+  const durationMinutes = rawMinutes > LUNCH_BREAK_MINUTES * 4
+    ? Math.max(0, rawMinutes - LUNCH_BREAK_MINUTES)
+    : rawMinutes;
 
   await deleteSessionsByDate(userId, workDate);
 
@@ -488,7 +496,9 @@ export async function getActiveSessionMinutes(userId: string, now: Date): Promis
     return 0;
   }
   const rawMinutes = minutesBetween(openSession.startTime, now);
-  return Math.max(0, rawMinutes - LUNCH_BREAK_MINUTES);
+  return rawMinutes > LUNCH_BREAK_MINUTES * 4
+    ? Math.max(0, rawMinutes - LUNCH_BREAK_MINUTES)
+    : rawMinutes;
 }
 
 export async function getBurnDown(userId: string, now: Date, timezoneName: string): Promise<{
