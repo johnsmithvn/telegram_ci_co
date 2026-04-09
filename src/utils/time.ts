@@ -75,7 +75,7 @@ export function parseHoursInput(text: string): number | null {
 export function parseClockTimeInput(text: string): string | null {
   const trimmed = text.trim().toLowerCase();
 
-  const withColon = trimmed.match(/^([01]?\d|2[0-3])[:h]([0-5]\d)$/);
+  const withColon = trimmed.match(/^([01]?\d|2[0-3])[:h]([0-5]?\d)$/);
   if (withColon) {
     const hour = Number(withColon[1]);
     const minute = Number(withColon[2]);
@@ -140,7 +140,12 @@ export function formatClockParts(hour: number, minute: number): string {
 }
 
 export function parseDirectTimeRangeInput(text: string): { startTime: string; endTime: string } | null {
-  const parts = text.trim().split(/\s+/).filter(Boolean);
+  const parts = text
+    .trim()
+    .split(/[\s-]+/)
+    .filter(Boolean)
+    .filter((p) => p !== "đến" && p !== "den" && p !== "->");
+
   if (parts.length < 2) {
     return null;
   }

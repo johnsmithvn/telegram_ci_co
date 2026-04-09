@@ -335,6 +335,8 @@ export async function addManualSessionForDateByTimeRange(
     throw new Error("End time must be after start time");
   }
 
+  await deleteSessionsByDate(userId, workDate);
+
   const session = await insertClosedSession({
     userId,
     startTime: startTime.toDate(),
