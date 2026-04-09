@@ -39,8 +39,8 @@ export function buildAddModeKeyboard() {
 export function buildAddDirectTimeKeyboard() {
   return Markup.keyboard([
     [ATTENDANCE_LABEL],
-    ["08:00", "08:30", "09:00", "09:30"],
-    ["12:00", "13:00", "17:00", "17:30", "18:00"]
+    ["08:00 17:00", "08:30 17:30"],
+    ["09:00 18:00", "08:00 12:00", "13:00 17:00"]
   ])
     .resize(true)
     .oneTime(false)
