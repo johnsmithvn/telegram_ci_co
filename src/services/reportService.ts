@@ -221,26 +221,26 @@ export function buildHelpMessage(): string {
     "Bạn chỉ cần bấm nút bên dưới:",
     "📋 Chấm công (lần đầu = Check-in, các lần sau = cập nhật Check-out)",
     "",
-    "Bao cao nhanh:",
+    "Báo cáo nhanh:",
     "`/today` | `/week` | `/week YYYY-MM-DD` | `/month`",
     "",
-    "Lenh them gio thu cong:",
-    "`/add` (chon T2-T7 roi chon mode) hoac `/add YYYY-MM-DD 8 1730`",
-    "Xoa rieng 1 ngay:",
-    "`/del` hoac `/delete` (chon T2-T7 roi xoa toan bo log ngay do)",
+    "Lệnh thêm giờ thủ công:",
+    "`/add` (chọn T2-T7 rồi chọn mode) hoặc `/add YYYY-MM-DD 8 1730`",
+    "Xóa riêng 1 ngày:",
+    "`/del` hoặc `/delete` (chọn T2-T7 rồi xóa toàn bộ log ngày đó)",
     "",
-    "Dung bot cho chinh ban:",
-    "`/stop` (bot se hoi Yes/No)",
+    "Dừng bot cho chính bạn:",
+    "`/stop` (bot sẽ hỏi Yes/No)",
     "",
-    "Admin reset toan bo du lieu:",
+    "Admin reset toàn bộ dữ liệu:",
     "`/resetall CONFIRM`"
   ].join("\n");
 }
 
 export function buildTodayReportMessage(todayMinutes: number): string {
-  const lines = [`Hom nay: ${formatMinutes(todayMinutes)}.`];
+  const lines = [`Hôm nay: ${formatMinutes(todayMinutes)}.`];
   if (todayMinutes >= 10 * 60) {
-    lines.push("Canh bao: hom nay ban da lam > 10h. Nghi mot chut nhe.");
+    lines.push("Cảnh báo: hôm nay bạn đã làm > 10h. Nghỉ một chút nhé.");
   }
   return lines.join("\n");
 }
@@ -257,8 +257,8 @@ export function buildWeekReportMessage(input: {
   const dayLines = input.days.map((item) => `${item.label}: ${formatMinutes(item.totalMinutes)}`);
   const remaining =
     input.remainingMinutes > 0
-      ? `Con thieu: ${formatMinutes(input.remainingMinutes)}`
-      : `Da vuot: ${formatMinutes(Math.abs(input.remainingMinutes))}`;
+      ? `Còn thiếu: ${formatMinutes(input.remainingMinutes)}`
+      : `Đã vượt: ${formatMinutes(Math.abs(input.remainingMinutes))}`;
   const title =
     input.weekStartDate && input.weekEndDate
       ? `Weekly Report (${input.weekStartDate} -> ${input.weekEndDate})`
@@ -287,7 +287,7 @@ export function buildMonthReportMessage(input: {
           (item, index) =>
             `Week ${index + 1} (${item.weekStartDate}): ${formatMinutes(item.totalMinutes)}`
         )
-      : ["Chua co du lieu thang nay."];
+      : ["Chưa có dữ liệu tháng này."];
 
   return [
     `Monthly Report - ${input.monthLabel}`,
@@ -295,7 +295,7 @@ export function buildMonthReportMessage(input: {
     `Total hours: ${formatMinutes(input.totalMinutes)}`,
     `Average/day: ${
       input.workedDays > 0 ? formatMinutes(input.averageMinutesPerWorkedDay) : "0h00m"
-    } (tren ${input.workedDays} ngay co log)`,
+    } (trên ${input.workedDays} ngày có log)`,
     "",
     ...weekLines
   ].join("\n");
@@ -307,7 +307,7 @@ export function buildWeeklySchedulerMessage(input: {
   targetMinutes: number;
   remainingMinutes: number;
 }): string {
-  return ["Weekly summary cuoi tuan:", buildWeekReportMessage(input)].join("\n\n");
+  return ["Tổng kết cuối tuần:", buildWeekReportMessage(input)].join("\n\n");
 }
 
 export function buildMonthlySchedulerMessage(input: {
@@ -317,37 +317,37 @@ export function buildMonthlySchedulerMessage(input: {
   workedDays: number;
   weeks: Array<{ weekStartDate: string; totalMinutes: number }>;
 }): string {
-  return ["Tong ket cuoi thang:", buildMonthReportMessage(input)].join("\n\n");
+  return ["Tổng kết cuối tháng:", buildMonthReportMessage(input)].join("\n\n");
 }
 
 export function buildResetDeniedMessage(): string {
-  return "Ban khong co quyen chay lenh reset.";
+  return "Bạn không có quyền chạy lệnh reset.";
 }
 
 export function buildResetConfirmMessage(): string {
-  return "Lenh nay rat nguy hiem. Dung `/resetall CONFIRM` de xoa toan bo du lieu.";
+  return "Lệnh này rất nguy hiểm. Dùng `/resetall CONFIRM` để xóa toàn bộ dữ liệu.";
 }
 
 export function buildResetSuccessMessage(): string {
-  return "Da xoa toan bo du lieu tracking. Bot reset ve trang thai moi.";
+  return "Đã xóa toàn bộ dữ liệu tracking. Bot reset về trạng thái mới.";
 }
 
 export function buildStopConfirmMessage(): string {
-  return "Ban chac chan muon stop? Du lieu cua ban se bi xoa. Bam Yes/No ben duoi.";
+  return "Bạn chắc chắn muốn stop? Dữ liệu của bạn sẽ bị xóa. Bấm Yes/No bên dưới.";
 }
 
 export function buildStopCancelledMessage(): string {
-  return "Da huy stop. Ban tiep tuc dung bot binh thuong.";
+  return "Đã hủy stop. Bạn tiếp tục dùng bot bình thường.";
 }
 
 export function buildStopSuccessMessage(deletedSessions: number): string {
   return [
-    "Da dung bot cho tai khoan nay.",
-    `Da xoa ${deletedSessions} session cua ban.`,
-    "Neu muon dung lai, gui `/start`."
+    "Đã dừng bot cho tài khoản này.",
+    `Đã xóa ${deletedSessions} session của bạn.`,
+    "Nếu muốn dùng lại, gửi `/start`."
   ].join("\n");
 }
 
 export function buildAlreadyStoppedMessage(): string {
-  return "Tai khoan nay dang o trang thai da stop. Gui `/start` de bat lai.";
+  return "Tài khoản này đang ở trạng thái đã stop. Gửi `/start` để bật lại.";
 }
