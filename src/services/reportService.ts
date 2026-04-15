@@ -1,5 +1,5 @@
 import { WeeklySummary } from "../types/domain";
-import { buildProgressBar, formatClock, formatDateShort, formatMinutes, getWeekdayNameVi } from "../utils/time";
+import { DAILY_TARGET_MINUTES, buildProgressBar, formatClock, formatDateShort, formatMinutes, getWeekdayNameVi } from "../utils/time";
 
 export function buildCheckInSuccessMessage(startTime: Date, timezoneName: string): string {
   return [
@@ -17,6 +17,15 @@ export function buildNoOpenSessionMessage(): string {
   return "Bạn chưa check-in nên chưa check-out được.";
 }
 
+function buildDebtLine(remainingMinutes: number): string {
+  if (remainingMinutes <= 0) {
+    return `Quá dữ! Bạn đã vượt KPI ${formatMinutes(Math.abs(remainingMinutes))}.`;
+  }
+  // Daily minimum floor: even if weekly debt < 8h, still must work a full 8h day
+  const displayRemaining = Math.max(remainingMinutes, DAILY_TARGET_MINUTES);
+  return `Cố lên, còn nợ: ${formatMinutes(displayRemaining)} nữa là tự do!`;
+}
+
 export function buildCheckOutMessage(input: {
   checkoutTime: Date;
   sessionMinutes: number;
@@ -24,12 +33,6 @@ export function buildCheckOutMessage(input: {
   summary: WeeklySummary;
   timezoneName: string;
 }): string {
-  const remaining = input.summary.remainingMinutes;
-  const debtLine =
-    remaining > 0
-      ? `Cố lên, còn nợ: ${formatMinutes(remaining)} nữa là tự do!`
-      : `Quá dữ! Bạn đã vượt KPI ${formatMinutes(Math.abs(remaining))}.`;
-
   return [
     "Xong phim!",
     `Đã ghi nhận checkout lúc ${formatClock(input.checkoutTime, input.timezoneName)}.`,
@@ -37,11 +40,32 @@ export function buildCheckOutMessage(input: {
     `Ca này làm được ${formatMinutes(input.sessionMinutes)} (đã trừ 1h nghỉ trưa).`,
     "",
     `📊 Tổng kết ngày hôm nay (${formatDateShort(input.checkoutTime, input.timezoneName)}):`,
-    `- Đã cày được: ${formatMinutes(input.todayWorkedMinutes)} / 44h.`,
+    `- Đã cày được: ${formatMinutes(input.todayWorkedMinutes)} / 8h.`,
     `- Tuần này: ${formatMinutes(input.summary.workedMinutes)} / 44h.`,
-    `- ${debtLine}`
+    `- ${buildDebtLine(input.summary.remainingMinutes)}`
   ].join("\n");
 }
+
+export function buildUpdatedCheckoutMessage(input: {
+  checkoutTime: Date;
+  sessionMinutes: number;
+  todayWorkedMinutes: number;
+  summary: WeeklySummary;
+  timezoneName: string;
+}): string {
+  return [
+    "🔄 Cập nhật giờ ra!",
+    `Đã ghi đè checkout → ${formatClock(input.checkoutTime, input.timezoneName)}.`,
+    "",
+    `Ca này làm được ${formatMinutes(input.sessionMinutes)} (đã trừ 1h nghỉ trưa).`,
+    "",
+    `📊 Tổng kết ngày hôm nay (${formatDateShort(input.checkoutTime, input.timezoneName)}):`,
+    `- Đã cày được: ${formatMinutes(input.todayWorkedMinutes)} / 8h.`,
+    `- Tuần này: ${formatMinutes(input.summary.workedMinutes)} / 44h.`,
+    `- ${buildDebtLine(input.summary.remainingMinutes)}`
+  ].join("\n");
+}
+
 
 export function buildBurnDownReport(input: {
   now: Date;
@@ -54,9 +78,11 @@ export function buildBurnDownReport(input: {
 }): string {
   const dayName = getWeekdayNameVi(input.now, input.timezoneName);
   const remaining = formatMinutes(Math.max(0, input.remainingMinutes));
-  const required = formatMinutes(Math.max(0, input.requiredMinutesPerDay));
   const daysLeftText = input.daysLeft === 1 ? "1 ngày làm việc" : `${input.daysLeft} ngày làm việc`;
   const progressBar = buildProgressBar(input.workedMinutes, input.targetMinutes);
+  // Daily minimum floor: always 8h/day regardless of weekly surplus
+  const effectiveRequired = Math.max(input.requiredMinutesPerDay, DAILY_TARGET_MINUTES);
+  const required = formatMinutes(effectiveRequired);
 
   let strategyText = "";
   let closingText = "";
@@ -66,11 +92,12 @@ export function buildBurnDownReport(input: {
       "Báo cáo tình hình lúc 17:30!",
       `Hôm nay là ${dayName}, bạn đã hoàn thành đủ KPI tuần này!`,
       `${progressBar} ${formatMinutes(input.workedMinutes)} / ${formatMinutes(input.targetMinutes)}`,
-      "Quy định là không cần làm nữa, về nghỉ ngơi thôi nghen 🎉"
+      `Vẫn phải làm đủ 8h/ngày nha, nhưng đang dư nên cứ tự nhiên thôi nhé. 🎉`
     ].join("\n");
-  } else if (input.requiredMinutesPerDay <= 480) {
-    strategyText = `Chúc mừng bạn không cần phải OT triền miên! Từ giờ đến cuối tuần còn ${daysLeftText}, chỉ cần làm mỗi ngày ${required} (dưới 8 tiếng) để đủ chỉ tiêu.`;
-    closingText = "Chill chill về nhà đúng giờ nào 😎";
+  } else if (input.requiredMinutesPerDay < DAILY_TARGET_MINUTES) {
+    // Surplus pace but daily minimum still applies
+    strategyText = `Từ giờ đến cuối tuần còn ${daysLeftText}. Bạn đang đi trước kế hoạch nhưng vẫn phải làm đủ ${required}/ngày theo quy định.`;
+    closingText = "Cần mẩn làm hết 8 tiếng, nhưng khỏi lo OT! 😎";
   } else {
     strategyText = `Chiến thuật cày bù: từ giờ đến hết tuần còn ${daysLeftText}, mỗi ngày cần cày ${required} để kịp đội.`;
     closingText = "Đừng để dồn cuối tuần rồi cày hộc máu. 🥲";
@@ -252,6 +279,8 @@ export function buildWeekReportMessage(input: {
   remainingMinutes: number;
   weekStartDate?: string;
   weekEndDate?: string;
+  daysLeft?: number;
+  requiredMinutesPerDay?: number;
 }): string {
   const progressBar = buildProgressBar(input.workedMinutes, input.targetMinutes);
   const dayLines = input.days.map((item) => `${item.label}: ${formatMinutes(item.totalMinutes)}`);
@@ -264,14 +293,33 @@ export function buildWeekReportMessage(input: {
       ? `Weekly Report (${input.weekStartDate} -> ${input.weekEndDate})`
       : "Weekly Report";
 
-  return [
+  const lines: string[] = [
     title,
     "",
     ...dayLines,
     "",
     `${progressBar} ${formatMinutes(input.workedMinutes)} / ${formatMinutes(input.targetMinutes)}`,
     remaining
-  ].join("\n");
+  ];
+
+  // Burndown strategy — only show for current week (daysLeft provided)
+  if (input.daysLeft !== undefined && input.requiredMinutesPerDay !== undefined) {
+    if (input.remainingMinutes <= 0) {
+      lines.push("", "🎉 Bạn đã hoàn thành đủ KPI tuần này! Vẫn phải làm đủ 8h/ngày nhưng khỏi lo OT nữa.");
+    } else {
+      const daysLeftText = input.daysLeft === 1 ? "1 ngày làm việc" : `${input.daysLeft} ngày làm việc`;
+      // Daily minimum floor: always 8h/day regardless of weekly surplus
+      const effectiveRequired = Math.max(input.requiredMinutesPerDay, DAILY_TARGET_MINUTES);
+      const required = formatMinutes(effectiveRequired);
+      if (input.requiredMinutesPerDay < DAILY_TARGET_MINUTES) {
+        lines.push("", `📅 Từ giờ đến cuối tuần còn ${daysLeftText}. Đang đi trước kế hoạch nhưng vẫn phải làm đủ ${required}/ngày theo quy định. 😎`);
+      } else {
+        lines.push("", `⚡ Từ giờ đến cuối tuần còn ${daysLeftText}, cần cày ${required}/ngày. Đừng để dồn cuối tuần! 🥲`);
+      }
+    }
+  }
+
+  return lines.join("\n");
 }
 
 export function buildMonthReportMessage(input: {
@@ -306,6 +354,8 @@ export function buildWeeklySchedulerMessage(input: {
   workedMinutes: number;
   targetMinutes: number;
   remainingMinutes: number;
+  daysLeft?: number;
+  requiredMinutesPerDay?: number;
 }): string {
   return ["Tổng kết cuối tuần:", buildWeekReportMessage(input)].join("\n\n");
 }

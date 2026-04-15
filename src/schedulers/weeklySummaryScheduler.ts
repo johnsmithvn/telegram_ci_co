@@ -19,7 +19,9 @@ export function startWeeklySummaryScheduler(bot: Telegraf<BotContext>, timezoneN
             days: week.days,
             workedMinutes: week.workedMinutes,
             targetMinutes: week.targetMinutes,
-            remainingMinutes: week.remainingMinutes
+            remainingMinutes: week.remainingMinutes,
+            daysLeft: week.daysLeft,
+            requiredMinutesPerDay: week.requiredMinutesPerDay
           });
           await bot.telegram.sendMessage(Number(user.chatId), message);
         }

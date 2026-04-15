@@ -10,7 +10,9 @@ dayjs.extend(isoWeek);
 dayjs.extend(customParseFormat);
 
 export const WEEKLY_TARGET_MINUTES = 44 * 60;
+export const DAILY_TARGET_MINUTES = 8 * 60;
 export const KPI_WARNING_THRESHOLD_MINUTES = 43 * 60 + 50;
+
 
 export function getNowInTimezone(timezoneName: string): dayjs.Dayjs {
   return dayjs().tz(timezoneName);

@@ -3,7 +3,8 @@ import { BotContext } from "../bot/context";
 import { recordAttendance, getTodayWorkedMinutes, getWeeklySummary } from "../services/sessionService";
 import {
   buildCheckInSuccessMessage,
-  buildCheckOutMessage
+  buildCheckOutMessage,
+  buildUpdatedCheckoutMessage
 } from "../services/reportService";
 
 export async function handleAttendance(ctx: BotContext, timezoneName: string): Promise<void> {
@@ -26,13 +27,18 @@ export async function handleAttendance(ctx: BotContext, timezoneName: string): P
     getTodayWorkedMinutes(user.id, now, timezoneName)
   ]);
 
-  const message = buildCheckOutMessage({
+  const messageInput = {
     checkoutTime: now,
     sessionMinutes: result.workedMinutes,
     todayWorkedMinutes,
     summary,
     timezoneName
-  });
+  };
+
+  const message = result.type === "updatedCheckout"
+    ? buildUpdatedCheckoutMessage(messageInput)
+    : buildCheckOutMessage(messageInput);
 
   await ctx.reply(message, { ...buildMainKeyboard() });
 }
+

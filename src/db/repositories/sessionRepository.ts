@@ -90,6 +90,21 @@ export async function findOpenSession(userId: string, client?: Queryable): Promi
   return result.rows[0] ? mapSession(result.rows[0]) : null;
 }
 
+export async function findSessionByWorkDate(userId: string, workDate: string, client?: Queryable): Promise<WorkSession | null> {
+  const result = await execute<SessionRow>(
+    `
+      SELECT id, user_id, start_time, end_time, duration_minutes, work_date, source, status, created_at, updated_at
+      FROM work_sessions
+      WHERE user_id = $1 AND work_date = $2::date
+      ORDER BY created_at DESC
+      LIMIT 1
+    `,
+    [userId, workDate],
+    client
+  );
+  return result.rows[0] ? mapSession(result.rows[0]) : null;
+}
+
 export async function createOpenSession(
   userId: string,
   startTime: Date,

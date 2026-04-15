@@ -51,6 +51,8 @@ export async function handleWeekCommand(ctx: BotContext, text: string, timezoneN
   }
 
   const week = await getWeeklyReportData(user.id, referenceDate, timezoneName);
+  // Only show burndown strategy for the current week (rawDate not specified)
+  const isCurrent = !rawDate;
   await ctx.reply(
     buildWeekReportMessage({
       days: week.days,
@@ -58,7 +60,11 @@ export async function handleWeekCommand(ctx: BotContext, text: string, timezoneN
       targetMinutes: week.targetMinutes,
       remainingMinutes: week.remainingMinutes,
       weekStartDate: week.startDate,
-      weekEndDate: week.endDate
+      weekEndDate: week.endDate,
+      ...(isCurrent && {
+        daysLeft: week.daysLeft,
+        requiredMinutesPerDay: week.requiredMinutesPerDay
+      })
     }),
     { ...buildMainKeyboard() }
   );

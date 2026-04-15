@@ -4,6 +4,7 @@ import {
   closeSession,
   createOpenSession,
   findOpenSession,
+  findSessionByWorkDate,
   getDailyTotalsInDateRange,
   getMonthWeeklyTotals,
   getWorkedMinutesByDate,
@@ -57,6 +58,8 @@ export interface WeeklyReportData {
   workedMinutes: number;
   targetMinutes: number;
   remainingMinutes: number;
+  daysLeft: number;
+  requiredMinutesPerDay: number;
 }
 
 export interface MonthlyReportData {
@@ -216,7 +219,8 @@ export async function checkOut(
 
 export type AttendanceResult =
   | { type: "checkedIn"; session: WorkSession }
-  | { type: "checkedOut"; session: WorkSession; workedMinutes: number };
+  | { type: "checkedOut"; session: WorkSession; workedMinutes: number }
+  | { type: "updatedCheckout"; session: WorkSession; workedMinutes: number };
 
 export async function recordAttendance(
   userId: string,
@@ -224,41 +228,28 @@ export async function recordAttendance(
   timezoneName: string
 ): Promise<AttendanceResult> {
   return withTransaction(async (client) => {
-    const existingOpen = await findOpenSession(userId, client);
-
-    if (!existingOpen) {
-      const workDate = getLocalDateString(now, timezoneName);
-      let created: WorkSession;
-      try {
-        created = await createOpenSession(userId, now, workDate, "normal", client);
-      } catch (error) {
-        const dbError = error as { code?: string };
-        if (dbError.code === "23505") {
-          const locked = await findOpenSession(userId, client);
-          if (locked) {
-            return { type: "checkedIn" as const, session: locked };
-          }
-        }
-        throw error;
-      }
-      await setWorkingStateTx(client, userId);
-      return { type: "checkedIn" as const, session: created };
-    }
-
     const todayDate = getLocalDateString(now, timezoneName);
 
-    // Cross-day guard: session belongs to a previous day (scheduler missed it)
-    // Force-close at 23:59 of that day, then start fresh check-in for today
-    if (existingOpen.workDate !== todayDate) {
+    // Cross-day guard: force-close any stale OPEN session from a previous day
+    // (happens when the 23:59 auto-close scheduler was missed, e.g. server restart)
+    const staleOpen = await findOpenSession(userId, client);
+    if (staleOpen && staleOpen.workDate !== todayDate) {
       const staleEndTime = dayjs
-        .tz(`${existingOpen.workDate} 23:59`, "YYYY-MM-DD HH:mm", timezoneName)
+        .tz(`${staleOpen.workDate} 23:59`, "YYYY-MM-DD HH:mm", timezoneName)
         .toDate();
-      const staleRaw = minutesBetween(existingOpen.startTime, staleEndTime);
+      const staleRaw = minutesBetween(staleOpen.startTime, staleEndTime);
       const staleDuration = staleRaw > LUNCH_BREAK_MINUTES * 4
         ? Math.max(0, staleRaw - LUNCH_BREAK_MINUTES)
         : staleRaw;
-      await closeSession(existingOpen.id, staleEndTime, staleDuration, "auto", existingOpen.workDate, client);
+      await closeSession(staleOpen.id, staleEndTime, staleDuration, "auto", staleOpen.workDate, client);
+      await setIdleStateTx(client, userId);
+    }
 
+    // Find today's session — could be OPEN (tapped once) or CLOSED (tapped before)
+    const todaySession = await findSessionByWorkDate(userId, todayDate, client);
+
+    // First tap of the day → Check-in
+    if (!todaySession) {
       let created: WorkSession;
       try {
         created = await createOpenSession(userId, now, todayDate, "normal", client);
@@ -276,13 +267,19 @@ export async function recordAttendance(
       return { type: "checkedIn" as const, session: created };
     }
 
-    const rawMinutes = minutesBetween(existingOpen.startTime, now);
+    // Subsequent taps same day → Close or overwrite end_time
+    const rawMinutes = minutesBetween(todaySession.startTime, now);
     const durationMinutes = rawMinutes > LUNCH_BREAK_MINUTES * 4
       ? Math.max(0, rawMinutes - LUNCH_BREAK_MINUTES)
       : rawMinutes;
-    const closed = await closeSession(existingOpen.id, now, durationMinutes, "normal", null, client);
+    const closed = await closeSession(todaySession.id, now, durationMinutes, "normal", null, client);
     await setIdleStateTx(client, userId);
-    return { type: "checkedOut" as const, session: closed, workedMinutes: durationMinutes };
+
+    // Distinguish: first checkout vs overwriting a previously set end_time
+    const isOverwrite = todaySession.status === "CLOSED";
+    return isOverwrite
+      ? { type: "updatedCheckout" as const, session: closed, workedMinutes: durationMinutes }
+      : { type: "checkedOut" as const, session: closed, workedMinutes: durationMinutes };
   });
 }
 
@@ -587,13 +584,20 @@ export async function getWeeklyReportData(
   }
 
   const workedMinutes = days.reduce((sum, item) => sum + item.totalMinutes, 0);
+  const remainingMinutes = WEEKLY_TARGET_MINUTES - workedMinutes;
+  const daysLeft = getWeekdaysLeftForBurndown(now, timezoneName);
+  const requiredMinutesPerDay = daysLeft > 0
+    ? Math.ceil(Math.max(0, remainingMinutes) / daysLeft)
+    : Math.max(0, remainingMinutes);
   return {
     startDate,
     endDate,
     days,
     workedMinutes,
     targetMinutes: WEEKLY_TARGET_MINUTES,
-    remainingMinutes: WEEKLY_TARGET_MINUTES - workedMinutes
+    remainingMinutes,
+    daysLeft,
+    requiredMinutesPerDay
   };
 }
 
