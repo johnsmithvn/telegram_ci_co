@@ -12,8 +12,7 @@ import {
   insertClosedSession,
   listOpenSessionsWithUsers,
   deleteSessionsByDate,
-  truncateAllTrackingData,
-  updateSessionEndTime
+  truncateAllTrackingData
 } from "../db/repositories/sessionRepository";
 import { setTargetMetWeek } from "../db/repositories/stateRepository";
 import {
@@ -246,14 +245,47 @@ export async function recordAttendance(
       return { type: "checkedIn" as const, session: created };
     }
 
+    const todayDate = getLocalDateString(now, timezoneName);
+
+    // Cross-day guard: session belongs to a previous day (scheduler missed it)
+    // Force-close at 23:59 of that day, then start fresh check-in for today
+    if (existingOpen.workDate !== todayDate) {
+      const staleEndTime = dayjs
+        .tz(`${existingOpen.workDate} 23:59`, "YYYY-MM-DD HH:mm", timezoneName)
+        .toDate();
+      const staleRaw = minutesBetween(existingOpen.startTime, staleEndTime);
+      const staleDuration = staleRaw > LUNCH_BREAK_MINUTES * 4
+        ? Math.max(0, staleRaw - LUNCH_BREAK_MINUTES)
+        : staleRaw;
+      await closeSession(existingOpen.id, staleEndTime, staleDuration, "auto", existingOpen.workDate, client);
+
+      let created: WorkSession;
+      try {
+        created = await createOpenSession(userId, now, todayDate, "normal", client);
+      } catch (error) {
+        const dbError = error as { code?: string };
+        if (dbError.code === "23505") {
+          const locked = await findOpenSession(userId, client);
+          if (locked) {
+            return { type: "checkedIn" as const, session: locked };
+          }
+        }
+        throw error;
+      }
+      await setWorkingStateTx(client, userId);
+      return { type: "checkedIn" as const, session: created };
+    }
+
     const rawMinutes = minutesBetween(existingOpen.startTime, now);
     const durationMinutes = rawMinutes > LUNCH_BREAK_MINUTES * 4
       ? Math.max(0, rawMinutes - LUNCH_BREAK_MINUTES)
       : rawMinutes;
-    const updated = await updateSessionEndTime(existingOpen.id, now, durationMinutes, client);
-    return { type: "checkedOut" as const, session: updated, workedMinutes: durationMinutes };
+    const closed = await closeSession(existingOpen.id, now, durationMinutes, "normal", null, client);
+    await setIdleStateTx(client, userId);
+    return { type: "checkedOut" as const, session: closed, workedMinutes: durationMinutes };
   });
 }
+
 
 export async function closeOpenSessionByManualHours(
   userId: string,
