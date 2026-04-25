@@ -339,6 +339,9 @@ export async function addManualSessionForDate(
   const durationMinutes = Math.max(1, Math.round(hours * 60));
   const startTime = dayjs.tz(`${workDate} 09:00`, timezoneName).toDate();
   const endTime = dayjs(startTime).add(durationMinutes, "minute").toDate();
+
+  await deleteSessionsByDate(userId, workDate);
+
   return insertClosedSession({
     userId,
     startTime,

@@ -332,17 +332,16 @@ export function buildMonthReportMessage(input: {
   const weekLines =
     input.weeks.length > 0
       ? input.weeks.map(
-          (item, index) =>
-            `Week ${index + 1} (${item.weekStartDate}): ${formatMinutes(item.totalMinutes)}`
-        )
+        (item, index) =>
+          `Week ${index + 1} (${item.weekStartDate}): ${formatMinutes(item.totalMinutes)}`
+      )
       : ["Chưa có dữ liệu tháng này."];
 
   return [
     `Monthly Report - ${input.monthLabel}`,
     "",
     `Total hours: ${formatMinutes(input.totalMinutes)}`,
-    `Average/day: ${
-      input.workedDays > 0 ? formatMinutes(input.averageMinutesPerWorkedDay) : "0h00m"
+    `Average/day: ${input.workedDays > 0 ? formatMinutes(input.averageMinutesPerWorkedDay) : "0h00m"
     } (trên ${input.workedDays} ngày có log)`,
     "",
     ...weekLines

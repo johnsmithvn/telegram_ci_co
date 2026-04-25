@@ -37,7 +37,15 @@ function normalizeDateOnly(value: string | Date): string {
   if (typeof value === "string") {
     return value;
   }
-  return value.toISOString().slice(0, 10);
+  // pg driver maps DATE columns to local-midnight Date objects.
+  // e.g. stored "2026-04-16" → new Date("2026-04-15T17:00:00.000Z") on UTC+7 host.
+  // toISOString() / getUTCDate() would return "2026-04-15" — one day off.
+  // getFullYear/Month/Date() reads the LOCAL calendar date, which matches the stored value
+  // regardless of the host's timezone (UTC or otherwise).
+  const y = value.getFullYear();
+  const m = String(value.getMonth() + 1).padStart(2, "0");
+  const d = String(value.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 function mapSession(row: SessionRow): WorkSession {

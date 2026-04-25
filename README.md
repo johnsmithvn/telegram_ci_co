@@ -5,6 +5,8 @@ fe: dashboard.render.com
 
 Telegram bot time-tracking cho check-in/check-out, theo KPI 44h/tuan, co burn-down, report theo ngay/tuan/thang, nhac quen checkout, va nhap gio thu cong.
 
+Version: **1.5.1**
+
 ## Stack
 
 - Node.js + TypeScript
@@ -16,31 +18,40 @@ Telegram bot time-tracking cho check-in/check-out, theo KPI 44h/tuan, co burn-do
 ## Features
 
 - Reply keyboard:
-  - `🟢 Check-in`
-  - `🔴 Check-out`
+  - `📋 Chấm công` (nut duy nhat)
+    - Lan dau trong ngay = **Check-in** (tao session OPEN)
+    - Lan 2 = **Check-out** (dong session → CLOSED)
+    - Lan 3+ = **Cap nhat checkout** (ghi de `end_time`, tinh lai duration)
 - 1 user chi co toi da 1 session `OPEN` (partial unique index trong DB).
 - Check-out tinh thoi luong session, tong hom nay, tong tuan, con thieu KPI.
+  - Tu dong tru 1h nghi trua khi ca > 4 tieng.
+- Cross-day guard: neu session OPEN tu ngay hom truoc chua close (scheduler miss), lan cham cong hom nay se tu dong dong session cu tai 23:59 truoc khi tao session moi.
 - Burn-down report luc `17:30` (Thu 2 -> Thu 6) + progress bar.
   - **Tinh luon session dang mo**: neu dang check-in ma chua check-out, thoi gian tu luc check-in den hien tai se duoc cong vao bao cao.
+  - Daily minimum floor: luon hien thi toi thieu 8h/ngay bat ke tien do tuan.
 - KPI warning moi 5 phut khi gan moc `43h50` (Tu Thu 2 -> Thu 7, khong gui Chu Nhat).
   - Tinh ca thoi gian session dang mo.
 - **Target-met notification**: Khi dang check-in va tong gio tuan (bao gom session dang mo) dat du 44h, bot se tu dong gui thong bao chuc mung. Moi tuan chi gui 1 lan. Chay moi 5 phut (Thu 2 -> Thu 7).
-- Nhac quen checkout luc `23:59` (Thu 2 -> Thu 7, khong gui Chu Nhat).
+- Nhac quen checkout luc `23:59` (Thu 2 -> Thu 7): tu dong close session tai 23:59, gui thong bao.
 - Manual hours:
-  - nhap so gio truc tiep (vi du `8`, `8.5`) de dong session mo.
-  - `/add` flow nhap ngay + so gio.
-  - `/add YYYY-MM-DD 8.5`.
+  - Nhap so gio truc tiep (vi du `8`, `8.5`) de dong session dang mo.
+  - `/add` interactive flow: chon ngay T2-T7 → chon mode (nhap lien 2 moc gio hoac tach gio/phut) → nhap thoi gian.
+  - `/add YYYY-MM-DD 830 1730` (shorthand).
+  - Quick time presets: `08:00 17:00`, `08:30 17:30`, v.v.
+- Xoa log theo ngay:
+  - `/del` hoac `/delete` (chon T2-T7 roi xoa toan bo sessions cua ngay do).
 - Bao cao nhanh:
-  - `/today`
-  - `/week`
-  - `/month`
+  - `/today` — tong gio hom nay (bao gom session dang mo).
+  - `/week` — bao cao tuan hien tai voi burndown strategy.
+  - `/week YYYY-MM-DD` — bao cao tuan chua ngay chi dinh.
+  - `/month` — bao cao thang voi average/ngay va breakdown theo tuan.
 - Summary scheduler:
   - `Sun 21:00`: weekly summary
   - `21:05` ngay cuoi thang: monthly summary
 - Admin reset data:
   - `/resetall CONFIRM` (chi user nam trong `ADMIN_TELEGRAM_IDS`)
 - User self-stop:
-  - `/stop CONFIRM` (xoa du lieu cua chinh user va ngung bot cho user do)
+  - `/stop` hoac `/stopme` — bot hoi Yes/No bang inline keyboard. Xac nhan se xoa toan bo sessions + state cua user va deactivate.
 
 ## Environment
 
@@ -157,6 +168,20 @@ curl -X POST https://your-bot/api/checkin \
 ```
 
 ## Changelog
+
+### v1.5.1 — 2026-04-25
+
+- **Bugfix**: `addManualSessionForDate()` gio goi `deleteSessionsByDate()` truoc khi insert, tranh tao duplicate sessions cung `work_date` lam `findSessionByWorkDate()` lay sai session.
+- **Docs**: Cap nhat README sync voi codebase hien tai (unified attendance button, /del, /stop flow, add flow modes, burndown strategy).
+
+### v1.5.0 — 2026-04-15
+
+- **Unified attendance**: Thay 2 nut Check-in / Check-out bang 1 nut "📋 Cham cong" duy nhat. Lan dau = open, cac lan sau = close/overwrite end_time.
+- **Cross-day guard**: Tu dong close session cu o 23:59 neu scheduler miss.
+- **Delete flow**: Them `/del` va `/delete` interactive flow (chon T2-T7 xoa sessions theo ngay).
+- **Stop flow**: Them `/stop` voi inline keyboard Yes/No thay vi require `/stop CONFIRM`.
+- **Add flow modes**: Them 2 mode nhap gio thu cong (nhap lien / tach gio-phut).
+- **Daily minimum floor**: Burndown va weekly report luon enforce 8h/ngay toi thieu.
 
 ### 2026-03-25
 
