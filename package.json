@@ -1,6 +1,6 @@
 {
   "name": "telegram_ci_co",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "description": "Telegram time-tracking bot with weekly KPI tracking",
   "main": "dist/index.js",
   "scripts": {

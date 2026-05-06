@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CI/CO - Chấm Công</title>
+  <meta name="description" content="Ứng dụng chấm công đơn giản, tính giờ làm việc theo tuần với target 44h.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="app">
+    <!-- ─── Header ─── -->
+    <header class="header">
+      <div class="header__brand">
+        <div class="header__logo">
+          <span class="header__logo-icon">⏱</span>
+        </div>
+        <div>
+          <h1 class="header__title">CI/CO</h1>
+          <p class="header__subtitle">Chấm Công Tuần</p>
+        </div>
+      </div>
+      <div class="header__right">
+        <div class="header__clock" id="liveClock">--:--:--</div>
+        <div class="header__date" id="liveDate">--</div>
+      </div>
+    </header>
+
+    <!-- ─── Week Info ─── -->
+    <section class="week-info" id="weekInfo">
+      <span class="week-info__badge" id="weekNumber">Tuần --</span>
+      <span class="week-info__range" id="weekRange">-- → --</span>
+    </section>
+
+    <!-- ─── Summary Bar ─── -->
+    <section class="summary" id="summarySection">
+      <div class="summary__progress">
+        <div class="summary__progress-track">
+          <div class="summary__progress-fill" id="progressFill" style="width: 0%"></div>
+          <div class="summary__progress-glow" id="progressGlow" style="width: 0%"></div>
+        </div>
+        <div class="summary__progress-labels">
+          <span id="workedLabel">0h00m</span>
+          <span id="targetLabel">44h00m</span>
+        </div>
+      </div>
+      <div class="summary__cards">
+        <div class="stat-card">
+          <span class="stat-card__value" id="totalWorked">0h00m</span>
+          <span class="stat-card__label">Đã làm</span>
+        </div>
+        <div class="stat-card stat-card--accent">
+          <span class="stat-card__value" id="remaining">44h00m</span>
+          <span class="stat-card__label">Còn lại</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-card__value" id="avgPerDay">0h00m</span>
+          <span class="stat-card__label">Cần/ngày</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-card__value" id="daysWorked">0/6</span>
+          <span class="stat-card__label">Ngày đã log</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── Day Grid ─── -->
+    <section class="day-grid" id="dayGrid"></section>
+
+    <!-- ─── Report Chart ─── -->
+    <section class="report">
+      <h2 class="report__title">📊 Báo cáo tuần</h2>
+      <div class="report__chart" id="reportChart"></div>
+      <div class="report__burndown" id="burndownInfo"></div>
+    </section>
+  </div>
+
+  <!-- ─── Modal ─── -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal" id="modalContent">
+      <div class="modal__header">
+        <h2 class="modal__title" id="modalTitle">Nhập giờ</h2>
+        <button class="modal__close" id="modalClose" type="button" aria-label="Đóng">&times;</button>
+      </div>
+      <div class="modal__body">
+        <div class="modal__date-display" id="modalDate">--</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="inputCheckIn">Giờ vào</label>
+            <input type="time" id="inputCheckIn" class="form-input" value="08:00">
+          </div>
+          <div class="form-group">
+            <label for="inputCheckOut">Giờ ra</label>
+            <input type="time" id="inputCheckOut" class="form-input" value="17:30">
+          </div>
+        </div>
+        <div class="modal__preview" id="previewSection">
+          <div class="preview__duration">
+            <span class="preview__label">Thời gian làm:</span>
+            <span class="preview__value" id="previewDuration">--</span>
+          </div>
+          <div class="preview__note" id="previewNote"></div>
+        </div>
+      </div>
+      <div class="modal__footer">
+        <button class="btn btn--danger" id="btnDelete" type="button">🗑 Xóa</button>
+        <div class="modal__footer-right">
+          <button class="btn btn--ghost" id="btnCancel" type="button">Hủy</button>
+          <button class="btn btn--primary" id="btnSave" type="button">💾 Lưu</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Toast ─── -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

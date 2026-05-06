@@ -5,7 +5,7 @@ fe: dashboard.render.com
 
 Telegram bot time-tracking cho check-in/check-out, theo KPI 44h/tuan, co burn-down, report theo ngay/tuan/thang, nhac quen checkout, va nhap gio thu cong.
 
-Version: **1.5.1**
+Version: **1.6.0**
 
 ## Stack
 
@@ -167,7 +167,26 @@ curl -X POST https://your-bot/api/checkin \
   -d '{"telegram_id": YOUR_TELEGRAM_ID}'
 ```
 
+## Web Dashboard
+
+Truy cap `http://your-server/` (root URL) de mo dashboard cham cong tren web.
+
+**Tinh nang:**
+- Nhap gio check-in / check-out cho tung ngay (T2 → T7)
+- Tu dong tru 1h nghi trua khi ca > 4 tieng
+- Hien thi tong gio tuan, progress bar, burndown strategy
+- Bao cao tuan bang bar chart
+- Luu du lieu bang localStorage (scope: 1 tuan, tu dong reset khi sang tuan moi)
+- Dark mode, responsive, khong can dang nhap
+
+**Luu y:** Dashboard hoat dong doc lap voi bot Telegram. Du lieu luu tren trinh duyet cua nguoi dung, khong dong bo voi database PostgreSQL.
+
 ## Changelog
+
+### v1.6.0 — 2026-05-06
+
+- **Web Dashboard**: Them giao dien web cham cong tai root URL `/`. Tinh gio cong theo tuan (44h target), luu localStorage, bao cao tuong tu bot Telegram. Dark mode, responsive, glassmorphism UI.
+- **Dockerfile**: Cap nhat de copy `public/` vao Docker image.
 
 ### v1.5.1 — 2026-04-25
 

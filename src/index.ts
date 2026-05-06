@@ -1,4 +1,5 @@
 import express from "express";
+import path from "path";
 import { createTelegramBot } from "./bot/telegram";
 import { createApiRouter } from "./api/apiRoutes";
 import { env } from "./config/env";
@@ -34,6 +35,10 @@ async function bootstrap(): Promise<void> {
       now: new Date().toISOString()
     });
   });
+
+  // Serve web dashboard (static files from public/)
+  const publicDir = path.join(__dirname, "..", "public");
+  app.use(express.static(publicDir));
 
   if (env.WEBHOOK_URL) {
     const webhookPath = "/telegram/webhook";
