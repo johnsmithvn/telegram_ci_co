@@ -19,10 +19,13 @@
   const STORAGE_KEY = 'cico_data';
   const DAY_LABELS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
   const DAY_FULL = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy'];
+  var DEFAULT_IN = '08:00';
+  var DEFAULT_OUT = '17:30';
 
   // ─── State ───
   let data = { weekStart: '', entries: {} };
   let selectedDate = null;
+  let editingDate = null; // date string of card currently in inline-edit mode
   let clockTimer = null;
 
   // ─── DOM References ───
@@ -85,6 +88,38 @@
     return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
   }
 
+  // ─── Time Parsers (ported from bot logic) ───
+
+  function pad2(n) { return String(n).padStart(2, '0'); }
+
+  function parseClockTime(text) {
+    text = text.trim().toLowerCase();
+    // "08:30" or "8:30" or "8h30"
+    var m1 = text.match(/^([01]?\d|2[0-3])[:h]([0-5]?\d)$/);
+    if (m1) return pad2(Number(m1[1])) + ':' + pad2(Number(m1[2]));
+    // "8" or "8h" → 08:00
+    var m2 = text.match(/^([01]?\d|2[0-3])h?$/);
+    if (m2) return pad2(Number(m2[1])) + ':00';
+    // "830" or "1730"
+    var m3 = text.match(/^(\d{3,4})$/);
+    if (m3) {
+      var digits = m3[1];
+      var hp = digits.length === 3 ? digits.slice(0, 1) : digits.slice(0, 2);
+      var mp = digits.slice(-2);
+      var h = Number(hp), mn = Number(mp);
+      if (h >= 0 && h <= 23 && mn >= 0 && mn <= 59) return pad2(h) + ':' + pad2(mn);
+    }
+    return null;
+  }
+
+  function parseTimeRange(text) {
+    var parts = text.trim().split(/[\s\-→]+/).filter(Boolean);
+    if (parts.length < 2) return null;
+    var s = parseClockTime(parts[0]);
+    var e = parseClockTime(parts[1]);
+    if (!s || !e) return null;
+    return { checkIn: s, checkOut: e };
+  }
   // ============================================================
   // STORAGE
   // ============================================================
@@ -232,20 +267,24 @@
   function renderDayGrid() {
     var days = getWeekDays();
     var grid = $('dayGrid');
-    // Days already in Mon-Sun order (weekStart = Monday)
     var ordered = days;
     var html = '';
+    var hasEmpty = false;
 
     for (var i = 0; i < ordered.length; i++) {
       var day = ordered[i];
       var mins = getDayMinutes(day.entry);
       var hasData = mins > 0;
       var isSunday = day.dayOfWeek === 0;
+      var isEditing = editingDate === day.date;
+
+      if (!isSunday && !hasData) hasEmpty = true;
 
       var classes = 'day-card';
       if (day.isToday) classes += ' day-card--today';
       if (hasData) classes += ' day-card--has-data';
       if (isSunday) classes += ' day-card--sunday';
+      if (isEditing) classes += ' day-card--editing';
 
       html += '<div class="' + classes + '" data-date="' + day.date + '">';
 
@@ -256,30 +295,89 @@
       html += '<div class="day-card__header">';
       html += '<div><span class="day-card__name">' + day.dayName + '</span> ';
       html += '<span class="day-card__date">' + day.dateShort + '</span></div>';
-      html += '<div class="day-card__status' +
-        (hasData ? ' day-card__status--done' : ' day-card__status--empty') +
-        '"></div>';
+      if (hasData && !isEditing) {
+        html += '<div class="day-card__header-actions">';
+        html += '<button class="day-card__edit-btn" data-action="modal" data-date="' + day.date + '" title="Sửa">✏️</button>';
+        html += '<button class="day-card__delete-btn" data-action="delete" data-date="' + day.date + '" title="Xóa">✕</button>';
+        html += '</div>';
+      } else {
+        html += '<div class="day-card__status' +
+          (hasData ? ' day-card__status--done' : ' day-card__status--empty') +
+          '"></div>';
+      }
       html += '</div>';
 
       html += '<div class="day-card__body">';
-      if (day.entry && day.entry.checkIn) {
-        html += '<div class="day-card__times">';
-        html += '<span>🕐 Vào: ' + day.entry.checkIn + '</span>';
-        if (day.entry.checkOut) {
-          html += '<span>🕔 Ra: ' + day.entry.checkOut + '</span>';
-        }
+      if (isEditing) {
+        // Inline edit mode
+        var prefill = hasData && day.entry
+          ? day.entry.checkIn.replace(':', '') + ' ' + day.entry.checkOut.replace(':', '')
+          : '';
+        html += '<div class="day-card__inline-edit">';
+        html += '<input type="text" class="day-card__inline-input" id="inlineInput_' + day.date + '"';
+        html += ' value="' + prefill + '" placeholder="VD: 830 1730"';
+        html += ' data-date="' + day.date + '">';
+        html += '<div class="day-card__inline-hint">Enter ↵ lưu · Esc hủy</div>';
         html += '</div>';
-        if (hasData) {
-          html += '<div class="day-card__duration">' + fmtMinutes(mins) + '</div>';
-        }
+      } else if (hasData && day.entry) {
+        html += '<div class="day-card__times">';
+        html += '<span>' + day.entry.checkIn + ' → ' + day.entry.checkOut + '</span>';
+        html += '<span class="day-card__modal-link" data-action="modal" data-date="' + day.date + '" title="Tùy chỉnh">⏰</span>';
+        html += '</div>';
+        html += '<div class="day-card__duration">' + fmtMinutes(mins) + '</div>';
+      } else if (isSunday) {
+        html += '<div class="day-card__empty">Nghỉ 😴</div>';
       } else {
-        html += '<div class="day-card__empty">' +
-          (isSunday ? 'Nghỉ 😴' : '+ Nhập giờ') + '</div>';
+        html += '<div class="day-card__empty">Nhấn đúp để nhập</div>';
+        html += '<div class="day-card__modal-link" data-action="modal" data-date="' + day.date + '">⏰ Tùy chỉnh</div>';
       }
       html += '</div></div>';
     }
 
     grid.innerHTML = html;
+
+    // Show/hide fill-all button
+    $('gridToolbar').style.display = hasEmpty ? 'flex' : 'none';
+
+    // Auto-focus inline input if editing
+    if (editingDate) {
+      var inp = $('inlineInput_' + editingDate);
+      if (inp) {
+        inp.focus();
+        inp.select();
+      }
+    }
+  }
+
+  // ─── Inline Edit ───
+
+  function activateInlineEdit(dateStr) {
+    if (editingDate === dateStr) return;
+    editingDate = dateStr;
+    renderDayGrid(); // re-render to show input
+  }
+
+  function cancelInlineEdit() {
+    editingDate = null;
+    renderDayGrid();
+  }
+
+  function handleInlineSave(dateStr, rawValue) {
+    var parsed = parseTimeRange(rawValue);
+    if (!parsed) {
+      showToast('Sai format. VD: 830 1730 hoặc 08:30 17:30', 'error');
+      return;
+    }
+    var duration = calcDuration(parsed.checkIn, parsed.checkOut);
+    if (duration <= 0) {
+      showToast('Giờ ra phải sau giờ vào.', 'error');
+      return;
+    }
+    data.entries[dateStr] = { checkIn: parsed.checkIn, checkOut: parsed.checkOut };
+    saveData();
+    editingDate = null;
+    render();
+    showToast(fmtMinutes(duration) + ' → ' + dateStr, 'success');
   }
 
   function renderReport() {
@@ -417,6 +515,37 @@
     showToast('Đã xóa log ngày ' + deletedDate, 'success');
   }
 
+
+
+  // Quick-delete from card action button
+  function quickDelete(dateStr) {
+    if (!data.entries[dateStr]) return;
+    delete data.entries[dateStr];
+    saveData();
+    render();
+    showToast('Đã xóa ' + dateStr, 'success');
+  }
+
+  // Fill all empty work days with default times
+  function fillAll() {
+    var days = getWeekDays();
+    var filled = 0;
+    for (var i = 0; i < days.length; i++) {
+      var day = days[i];
+      if (day.dayOfWeek === 0) continue;
+      if (data.entries[day.date]) continue;
+      data.entries[day.date] = { checkIn: DEFAULT_IN, checkOut: DEFAULT_OUT };
+      filled++;
+    }
+    if (filled === 0) {
+      showToast('Không có ngày trống nào!', 'error');
+      return;
+    }
+    saveData();
+    render();
+    showToast('Đã fill ' + filled + ' ngày (' + DEFAULT_IN + '→' + DEFAULT_OUT + ')', 'success');
+  }
+
   // ============================================================
   // TOAST
   // ============================================================
@@ -440,15 +569,63 @@
   // ============================================================
 
   function setupEvents() {
-    // Day card click (event delegation)
-    $('dayGrid').addEventListener('click', function (e) {
+    // Double-click on day card → inline edit
+    $('dayGrid').addEventListener('dblclick', function (e) {
       var card = e.target.closest('.day-card');
       if (!card || card.classList.contains('day-card--sunday')) return;
-      var date = card.getAttribute('data-date');
-      if (date) openModal(date);
+      // Don't trigger if clicking delete button
+      if (e.target.closest('[data-action="delete"]')) return;
+      var dateStr = card.dataset.date;
+      if (dateStr) activateInlineEdit(dateStr);
     });
 
-    // Modal
+    // Click handlers (delete, modal link)
+    $('dayGrid').addEventListener('click', function (e) {
+      // Modal link → open time picker modal
+      var modalLink = e.target.closest('[data-action="modal"]');
+      if (modalLink) {
+        e.stopPropagation();
+        openModal(modalLink.dataset.date);
+        return;
+      }
+
+      var deleteBtn = e.target.closest('[data-action="delete"]');
+      if (deleteBtn) {
+        e.stopPropagation();
+        quickDelete(deleteBtn.dataset.date);
+        return;
+      }
+    });
+
+    // Inline input: Enter → save, Escape → cancel
+    $('dayGrid').addEventListener('keydown', function (e) {
+      var input = e.target.closest('.day-card__inline-input');
+      if (!input) return;
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleInlineSave(input.dataset.date, input.value);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        cancelInlineEdit();
+      }
+    });
+
+    // Blur on inline input → cancel
+    $('dayGrid').addEventListener('focusout', function (e) {
+      var input = e.target.closest('.day-card__inline-input');
+      if (!input) return;
+      // Small delay to allow Enter keydown to fire first
+      setTimeout(function () {
+        if (editingDate === input.dataset.date) {
+          cancelInlineEdit();
+        }
+      }, 150);
+    });
+
+    // Fill all button
+    $('fillAllBtn').addEventListener('click', fillAll);
+
+    // Modal (kept for fallback)
     $('modalClose').addEventListener('click', closeModal);
     $('btnCancel').addEventListener('click', closeModal);
     $('btnSave').addEventListener('click', saveEntry);
@@ -456,14 +633,15 @@
     $('modalOverlay').addEventListener('click', function (e) {
       if (e.target === $('modalOverlay')) closeModal();
     });
-
-    // Live preview
     $('inputCheckIn').addEventListener('input', updatePreview);
     $('inputCheckOut').addEventListener('input', updatePreview);
 
-    // Keyboard
+    // Global Escape
     document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') closeModal();
+      if (e.key === 'Escape') {
+        if (editingDate) cancelInlineEdit();
+        else closeModal();
+      }
     });
   }
 

@@ -416,6 +416,137 @@ body::before {
   border-radius: 0 var(--radius-md) 0 var(--radius-sm);
 }
 
+/* ─── Inline Edit (replaces preset chips) ─── */
+.day-card--editing {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), var(--shadow-glow);
+}
+
+.day-card__inline-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.day-card__inline-input {
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-sm);
+  color: var(--accent-light);
+  font-family: var(--font);
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  letter-spacing: 0.02em;
+  transition: var(--transition);
+}
+
+.day-card__inline-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+
+.day-card__inline-input::placeholder {
+  color: var(--text-muted);
+  font-weight: 400;
+  font-size: 0.8rem;
+}
+
+.day-card__inline-hint {
+  text-align: center;
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+
+/* ─── Card Header Actions (edit + delete) ─── */
+.day-card__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  opacity: 0;
+  transition: var(--transition);
+}
+
+.day-card:hover .day-card__header-actions {
+  opacity: 1;
+}
+
+.day-card__edit-btn,
+.day-card__delete-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0.15rem 0.35rem;
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+  line-height: 1;
+}
+
+.day-card__edit-btn:hover {
+  color: var(--accent-light);
+  background: var(--accent-dim);
+}
+
+.day-card__delete-btn:hover {
+  color: var(--danger);
+  background: var(--danger-dim);
+}
+
+/* ─── Modal Link (Tùy chỉnh) ─── */
+.day-card__modal-link {
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: var(--transition);
+  margin-top: 0.25rem;
+}
+
+.day-card__modal-link:hover {
+  color: var(--accent-light);
+}
+
+.day-card__times .day-card__modal-link {
+  font-size: 0.7rem;
+  margin: 0;
+  padding-left: 0.25rem;
+}
+
+/* ─── Fill All Button ─── */
+.grid-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.fill-all-btn {
+  padding: 0.45rem 1rem;
+  background: var(--accent-dim);
+  border: 1px solid var(--border-accent);
+  border-radius: 999px;
+  color: var(--accent-light);
+  font-family: var(--font);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.fill-all-btn:hover {
+  background: var(--accent);
+  color: var(--bg-primary);
+  box-shadow: 0 0 20px var(--accent-glow);
+}
+
 /* ================================================================
    REPORT
    ================================================================ */
