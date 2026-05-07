@@ -202,17 +202,11 @@
   }
 
   function getWorkdaysLeft() {
-    var days = getWeekDays();
-    var todayStr = fmtDate(new Date());
-    var count = 0;
-    var foundToday = false;
-    for (var i = 0; i < days.length; i++) {
-      if (days[i].date === todayStr) foundToday = true;
-      if (!foundToday) continue;
-      // Count today + future workdays (Mon-Sat, dayOfWeek 1-6)
-      if (days[i].isWorkDay) count++;
-    }
-    return Math.max(count, 1);
+    var dayOfWeek = new Date().getDay();
+    // ISO: 1=Mon...5=Fri, 6=Sat, 0=Sun
+    // Burndown counts Mon-Fri (5 days), Sat/Sun → 1
+    if (dayOfWeek === 0 || dayOfWeek >= 5) return 1;
+    return 5 - dayOfWeek;
   }
 
   function getBurndownRequired() {
