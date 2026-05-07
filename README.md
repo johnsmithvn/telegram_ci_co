@@ -5,7 +5,7 @@ fe: dashboard.render.com
 
 Telegram bot time-tracking cho check-in/check-out, theo KPI 44h/tuan, co burn-down, report theo ngay/tuan/thang, nhac quen checkout, va nhap gio thu cong.
 
-Version: **1.6.0**
+Version: **1.6.1**
 
 ## Stack
 
@@ -175,13 +175,18 @@ Truy cap `http://your-server/` (root URL) de mo dashboard cham cong tren web.
 - Nhap gio check-in / check-out cho tung ngay (T2 → T7)
 - Tu dong tru 1h nghi trua khi ca > 4 tieng
 - Hien thi tong gio tuan, progress bar, burndown strategy
-- Bao cao tuan bang bar chart
+- Bao cao tuan: radial progress ring, heatmap, streak, insight card
 - Luu du lieu bang localStorage (scope: 1 tuan, tu dong reset khi sang tuan moi)
 - Dark mode, responsive, khong can dang nhap
 
 **Luu y:** Dashboard hoat dong doc lap voi bot Telegram. Du lieu luu tren trinh duyet cua nguoi dung, khong dong bo voi database PostgreSQL.
 
 ## Changelog
+
+### v1.6.1 — 2026-05-07
+
+- **Bugfix**: `getWorkdaysLeft()` sai — Saturday (T7) bi tinh la 1 ngay con lai thay vi dem dung. Da fix: dem workdays (T2-T7) tu hom nay den cuoi tuan.
+- **Report Redesign**: Thay bar chart cu bang premium analytics dashboard: SVG radial progress ring, heatmap-style day blocks (heat intensity theo gio lam), streak counter, quick stats grid, va insight card voi burndown strategy.
 
 ### v1.6.0 — 2026-05-06
 

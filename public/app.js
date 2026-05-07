@@ -202,11 +202,17 @@
   }
 
   function getWorkdaysLeft() {
-    var dayOfWeek = new Date().getDay();
-    // ISO: 1=Mon...5=Fri, 6=Sat, 0=Sun
-    // Burndown counts Mon-Fri (5 days), Sat/Sun → 1
-    if (dayOfWeek === 0 || dayOfWeek >= 5) return 1;
-    return 5 - dayOfWeek;
+    var days = getWeekDays();
+    var todayStr = fmtDate(new Date());
+    var count = 0;
+    var foundToday = false;
+    for (var i = 0; i < days.length; i++) {
+      if (days[i].date === todayStr) foundToday = true;
+      if (!foundToday) continue;
+      // Count today + future workdays (Mon-Sat, dayOfWeek 1-6)
+      if (days[i].isWorkDay) count++;
+    }
+    return Math.max(count, 1);
   }
 
   function getBurndownRequired() {
@@ -382,50 +388,110 @@
 
   function renderReport() {
     var days = getWeekDays();
-    var ordered = days;
-    var maxDisplay = 14 * 60; // 14h max for chart scale
-
-    var chartHtml = '';
-    for (var i = 0; i < ordered.length; i++) {
-      var day = ordered[i];
-      var mins = getDayMinutes(day.entry);
-      var heightPct = Math.min(100, (mins / maxDisplay) * 100);
-      var isOver = mins >= DAILY_TARGET;
-      var todayClass = day.isToday ? ' chart-bar--today' : '';
-
-      chartHtml += '<div class="chart-bar' + todayClass + '">';
-      chartHtml += '<div class="chart-bar__value">' + (mins > 0 ? fmtMinutes(mins) : '-') + '</div>';
-      chartHtml += '<div class="chart-bar__fill-wrap">';
-      chartHtml += '<div class="chart-bar__fill' + (isOver ? ' chart-bar__fill--over' : '') +
-        '" style="height:' + heightPct + '%"></div>';
-      chartHtml += '</div>';
-      chartHtml += '<div class="chart-bar__label">' + day.dayName + '</div>';
-      chartHtml += '</div>';
-    }
-    $('reportChart').innerHTML = chartHtml;
-
-    // Burndown info
     var total = getWeeklyTotal();
-    var remaining = WEEKLY_TARGET - total;
+    var remaining = Math.max(0, WEEKLY_TARGET - total);
+    var pct = Math.min(100, (total / WEEKLY_TARGET) * 100);
     var daysLeft = getWorkdaysLeft();
-    var burndown = '';
+    var required = getBurndownRequired();
+    var daysWorked = getDaysWorked();
+    var isComplete = total >= WEEKLY_TARGET;
+    var surplus = total - WEEKLY_TARGET;
 
-    if (remaining <= 0) {
-      burndown = '🎉 <strong>Đã hoàn thành KPI tuần!</strong> Vượt ' + fmtMinutes(Math.abs(remaining)) +
-        '. Vẫn phải làm đủ 8h/ngày nhưng khỏi lo OT!';
-    } else {
-      var required = getBurndownRequired();
-      var daysText = daysLeft === 1 ? '1 ngày làm việc' : daysLeft + ' ngày làm việc';
-      burndown = '⚡ Còn <strong>' + fmtMinutes(remaining) + '</strong> nữa là đủ. ';
-      burndown += 'Từ giờ đến cuối tuần còn ' + daysText + ', ';
-      burndown += 'cần cày <strong>' + fmtMinutes(required) + '/ngày</strong>.';
-      if (required > DAILY_TARGET) {
-        burndown += '<br>🥲 Đang nợ — đừng để dồn cuối tuần!';
+    // ─── Radial Progress Ring ───
+    var circumference = 2 * Math.PI * 54; // r=54
+    var offset = circumference - (pct / 100) * circumference;
+    var ringColor = isComplete ? 'var(--success)' : (pct >= 70 ? 'var(--accent)' : (pct >= 40 ? 'var(--warning)' : 'var(--danger)'));
+
+    var html = '<div class="report-v2">';
+
+    // ── Top row: Ring + Stats ──
+    html += '<div class="report-v2__top">';
+
+    // Radial ring
+    html += '<div class="report-v2__ring-wrap">';
+    html += '<svg class="report-v2__ring" viewBox="0 0 120 120">';
+    html += '<circle cx="60" cy="60" r="54" fill="none" stroke="var(--bg-primary)" stroke-width="8"/>';
+    html += '<circle cx="60" cy="60" r="54" fill="none" stroke="' + ringColor + '" stroke-width="8" ';
+    html += 'stroke-dasharray="' + circumference + '" stroke-dashoffset="' + offset + '" ';
+    html += 'stroke-linecap="round" transform="rotate(-90 60 60)" class="report-v2__ring-fill"/>';
+    html += '</svg>';
+    html += '<div class="report-v2__ring-center">';
+    html += '<span class="report-v2__ring-pct">' + Math.round(pct) + '%</span>';
+    html += '<span class="report-v2__ring-sub">' + fmtMinutes(total) + '</span>';
+    html += '</div></div>';
+
+    // Quick stats
+    html += '<div class="report-v2__quick-stats">';
+    html += '<div class="report-v2__stat">';
+    html += '<span class="report-v2__stat-val">' + fmtMinutes(remaining) + '</span>';
+    html += '<span class="report-v2__stat-lbl">Còn thiếu</span></div>';
+    html += '<div class="report-v2__stat">';
+    html += '<span class="report-v2__stat-val">' + fmtMinutes(required) + '</span>';
+    html += '<span class="report-v2__stat-lbl">Cần/ngày</span></div>';
+    html += '<div class="report-v2__stat">';
+    html += '<span class="report-v2__stat-val">' + daysLeft + '</span>';
+    html += '<span class="report-v2__stat-lbl">Ngày còn lại</span></div>';
+    html += '</div></div>';
+
+    // ── Heatmap row ──
+    html += '<div class="report-v2__heatmap">';
+    for (var i = 0; i < days.length; i++) {
+      var day = days[i];
+      var mins = getDayMinutes(day.entry);
+      var dayPct = Math.min(100, (mins / DAILY_TARGET) * 100);
+      var heatClass = 'report-v2__heat-cell';
+      if (day.isToday) heatClass += ' report-v2__heat-cell--today';
+      if (day.dayOfWeek === 0) heatClass += ' report-v2__heat-cell--off';
+
+      // Heat intensity
+      var heatLevel = mins === 0 ? 0 : (mins < DAILY_TARGET * 0.5 ? 1 : (mins < DAILY_TARGET ? 2 : (mins < DAILY_TARGET * 1.25 ? 3 : 4)));
+
+      html += '<div class="' + heatClass + '" data-heat="' + heatLevel + '">';
+      html += '<div class="report-v2__heat-day">' + day.dayName + '</div>';
+      if (mins > 0) {
+        html += '<div class="report-v2__heat-bar-track"><div class="report-v2__heat-bar-fill" style="width:' + dayPct + '%"></div></div>';
+        html += '<div class="report-v2__heat-val">' + fmtMinutes(mins) + '</div>';
+      } else if (day.dayOfWeek === 0) {
+        html += '<div class="report-v2__heat-off">OFF</div>';
       } else {
-        burndown += '<br>😎 Đang đi đúng tiến độ!';
+        html += '<div class="report-v2__heat-bar-track"><div class="report-v2__heat-bar-fill" style="width:0%"></div></div>';
+        html += '<div class="report-v2__heat-val report-v2__heat-val--zero">—</div>';
       }
+      html += '</div>';
     }
-    $('burndownInfo').innerHTML = burndown;
+    html += '</div>';
+
+    // ── Burndown insight ──
+    html += '<div class="report-v2__insight">';
+    if (isComplete) {
+      html += '<div class="report-v2__insight-icon">🎉</div>';
+      html += '<div class="report-v2__insight-text">';
+      html += '<strong>KPI tuần hoàn thành!</strong><br>';
+      html += 'Vượt <span class="text-success">' + fmtMinutes(surplus) + '</span>. ';
+      html += 'Vẫn phải làm đủ 8h/ngày nhưng khỏi lo OT!';
+      html += '</div>';
+    } else {
+      var avgWorked = daysWorked > 0 ? Math.round(total / daysWorked) : 0;
+      var paceIcon = required > DAILY_TARGET * 1.25 ? '🔴' : (required > DAILY_TARGET ? '🟡' : '🟢');
+      html += '<div class="report-v2__insight-icon">' + paceIcon + '</div>';
+      html += '<div class="report-v2__insight-text">';
+      html += 'Còn <strong>' + fmtMinutes(remaining) + '</strong> trong <strong>' + daysLeft + ' ngày</strong>';
+      html += ' · Cần <strong>' + fmtMinutes(required) + '/ngày</strong>';
+      if (daysWorked > 0) {
+        html += '<br><span class="text-muted">Trung bình hiện tại: ' + fmtMinutes(avgWorked) + '/ngày làm</span>';
+      }
+      if (required > DAILY_TARGET * 1.25) {
+        html += '<br><span class="text-warning">⚠ Đang nợ nặng — cần tăng tốc!</span>';
+      } else if (required <= DAILY_TARGET) {
+        html += '<br><span class="text-success">✓ Đang đi đúng tiến độ</span>';
+      }
+      html += '</div>';
+    }
+    html += '</div>';
+
+    html += '</div>'; // .report-v2
+    $('reportChart').innerHTML = html;
+    $('burndownInfo').innerHTML = '';
   }
 
   // ============================================================
